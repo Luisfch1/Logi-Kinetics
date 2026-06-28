@@ -92,42 +92,17 @@ export const BackupModule = {
             const backupData = {
                 schemaVersion: 2,
                 type: 'project',
-                projectId: projectId,
-                projectName: project.name,
-                app: 'Logi', // Compatible con legacy
+                app: 'Logi Kinetic',
                 createdAt: new Date().toISOString(),
-                settings: {
-                    theme: 'dark',
-                    accent: 'green',
-                    project: project.name
-                },
-                catalog: (catalog || []).map(r => ({
-                    projectId: projectId,
-                    item: r.item || "",
-                    descripcion: r.descripcion || "",
-                    unidad: r.unidad || "",
-                    createdAt: r.createdAt || Date.now()
-                })),
-                items: items.map(it => ({
-                    id: it.id,
-                    fecha: new Date(it.createdAt).toISOString().split('T')[0],
-                    proyecto: it.projectName || project.name,
-                    descripcion: it.descripcion || '',
-                    done: false,
-                    mime: 'image/jpeg',
-                    createdAt: it.createdAt,
-                    hasLogo: false,
-                    itemCode: it.actividad || '',
-                    itemDesc: '',
-                    projectId: it.projectId || projectId,
-                    projectName: it.projectName || project.name
-                }))
+                projects: [project],
+                catalog: catalog.filter(c => c.projectId === projectId || !c.projectId),
+                items: items
             };
 
             zip.file("backup.json", JSON.stringify(backupData, null, 2));
 
-            // 2. Agregar Fotos (Formato Plano Legacy: photos/[itemId].jpg)
-            const photoFolder = zip.folder("photos");
+            // 2. Agregar Fotos (Ruta Legacy: photos/[projectId]/[itemId].jpg)
+            const photoFolder = zip.folder(`photos/${projectId}`);
             let count = 0;
             const total = items.length;
 
@@ -145,7 +120,7 @@ export const BackupModule = {
             const blob = await zip.generateAsync({ type: "blob" });
 
             // 3. Guardar/Compartir
-            const filename = `logi-backup-${new Date().toISOString().replace(new RegExp('[-' + ':T.]', 'g'), '').slice(0, 14)}.zip`;
+            const filename = `Backup_${project.name.replace(/\s+/g, '_')}_${Date.now()}.zip`;
             await this._saveAndShareZip(blob, filename);
 
         } catch (e) {
@@ -169,70 +144,40 @@ export const BackupModule = {
             const zip = new JSZip();
             this._notifyProgress(0, 1, "Iniciando respaldo total...");
 
-            const firstId = State.projects[0]?.id || 'p_default';
-            const allCatalog = await this._getFullCatalog();
-
-            // 1. Metadatos Globales (Esquema Legacy Total)
+            // 1. Metadatos Globales
             const backupData = {
                 schemaVersion: 2,
                 type: 'all',
-                app: 'Logi', // Compatible con legacy
+                app: 'Logi Kinetic',
                 createdAt: new Date().toISOString(),
+                projects: State.projects,
+                items: State._allItems,
+                catalog: await this._getFullCatalog(),
                 settings: {
-                    theme: 'dark',
-                    accent: 'green'
-                },
-                projects: State.projects.map(p => ({
-                    id: p.id,
-                    name: p.name,
-                    createdAt: p.created || Date.now()
-                })),
-                activeProjectId: State.currentProject?.id || firstId,
-                catalog: (allCatalog || []).map(r => ({
-                    projectId: r.projectId || firstId,
-                    item: r.item || "",
-                    descripcion: r.descripcion || "",
-                    unidad: r.unidad || "",
-                    createdAt: r.createdAt || Date.now()
-                })),
-                items: State._allItems.map(it => ({
-                    id: it.id,
-                    fecha: new Date(it.createdAt).toISOString().split('T')[0],
-                    proyecto: it.projectName || '',
-                    descripcion: it.descripcion || '',
-                    done: false,
-                    mime: 'image/jpeg',
-                    createdAt: it.createdAt,
-                    hasLogo: false,
-                    itemCode: it.actividad || '',
-                    itemDesc: '',
-                    projectId: it.projectId || firstId,
-                    projectName: it.projectName || ''
-                }))
+                    accentColor: State.accentColor
+                }
             };
 
             zip.file("backup.json", JSON.stringify(backupData, null, 2));
 
-            // 2. Fotos organizadas por proyecto (photos/[projectId]/[itemId].jpg)
-            const photosFolder = zip.folder("photos");
+            // 2. Fotos organizadas por proyecto
             let count = 0;
             const total = State._allItems.length;
 
             for (const it of State._allItems) {
                 this._notifyProgress(count, total, `Procesando fotos totales... (${count}/${total})`);
-                const pid = it.projectId || firstId;
-                const projectFolder = photosFolder.folder(pid);
+                const pid = it.projectId || 'unknown';
                 const base64 = await LogiNative.readBlobAsBase64(it.filename);
                 if (base64) {
                     const rawData = base64.split(',')[1];
-                    projectFolder.file(`${it.id}.jpg`, rawData, { base64: true });
+                    zip.file(`photos/${pid}/${it.id}.jpg`, rawData, { base64: true });
                 }
                 count++;
             }
 
             this._notifyProgress(total, total, "Generando archivo final...");
             const blob = await zip.generateAsync({ type: "blob" });
-            const filename = `logi-backup-TOTAL-${new Date().toISOString().replace(new RegExp('[-' + ':T.]', 'g'), '').slice(0, 14)}.zip`;
+            const filename = `Respaldo_TOTAL_Logi_${new Date().toISOString().split('T')[0]}.zip`;
             await this._saveAndShareZip(blob, filename);
 
         } catch (e) {
@@ -240,7 +185,6 @@ export const BackupModule = {
             alert("Error: " + e.message);
         } finally {
             this.isProcessing = false;
-            this._notifyProgress(100, 100, "Completado");
         }
     },
 
@@ -379,9 +323,8 @@ export const BackupModule = {
                     let photoLoaded = false;
 
                     if (photoFile) {
-                        // Rolldown / JSZip metadata check for uncompressed size
-                        const isZeroByte = photoFile._data && photoFile._data.uncompressedSize === 0;
-                        if (!isZeroByte) {
+                        const content = await photoFile.async("uint8array");
+                        if (content && content.length > 0) {
                             const base64 = await photoFile.async("base64");
                             if (base64 && base64.trim().length > 0) {
                                 await LogiNative.storeBlob(cleanItem.filename, base64);
