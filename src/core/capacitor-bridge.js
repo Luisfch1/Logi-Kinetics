@@ -25,13 +25,8 @@ let _dbPromise = null;
 function getDB() {
     if (_dbPromise) return _dbPromise;
     _dbPromise = new Promise((resolve) => {
-        const req = indexedDB.open(DB_NAME, 2);
-        req.onupgradeneeded = () => {
-            const db = req.result;
-            if (!db.objectStoreNames.contains(STORE_NAME)) {
-                db.createObjectStore(STORE_NAME);
-            }
-        };
+        const req = indexedDB.open(DB_NAME, 1);
+        req.onupgradeneeded = () => req.result.createObjectStore(STORE_NAME);
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => resolve(null);
     });
@@ -98,10 +93,10 @@ export const LogiNative = {
                 // Asegurar estructura en PRIMARY_DIR (Data)
                 const folders = ['meta', 'items_meta', 'config', 'catalog', 'blobs'];
                 for (const f of folders) {
-                    await withTimeout(Filesystem.mkdir({ path: DATA_DIR + '/' + f, directory: PRIMARY_DIR, recursive: true }), 1000).catch(() => {});
+                    await withTimeout(Filesystem.mkdir({ path: DATA_DIR + '/' + f, directory: PRIMARY_DIR, recursive: true }), 1000).catch(() => { });
                 }
-                await withTimeout(Filesystem.mkdir({ path: '_LOGI_VAULT_/Reports', directory: PRIMARY_DIR, recursive: true }), 1000).catch(() => {});
-                
+                await withTimeout(Filesystem.mkdir({ path: '_LOGI_VAULT_/Reports', directory: PRIMARY_DIR, recursive: true }), 1000).catch(() => { });
+
                 const res = await Filesystem.getUri({ path: DATA_DIR + '/blobs', directory: PRIMARY_DIR });
                 _dynamicBlobsUri = Capacitor.convertFileSrc(res.uri).replace(/\/+$/, '') + '/';
 
@@ -134,7 +129,7 @@ export const LogiNative = {
                 const sPath = `${DATA_DIR}/${store}`;
                 const sFiles = await Filesystem.readdir({ path: sPath, directory: LEGACY_DIR }).catch(() => null);
                 if (sFiles && sFiles.files) {
-                    await Filesystem.mkdir({ path: sPath, directory: PRIMARY_DIR, recursive: true }).catch(() => {});
+                    await Filesystem.mkdir({ path: sPath, directory: PRIMARY_DIR, recursive: true }).catch(() => { });
                     for (const f of sFiles.files) {
                         const name = typeof f === 'string' ? f : f.name;
                         await Filesystem.copy({
@@ -142,7 +137,7 @@ export const LogiNative = {
                             to: `${sPath}/${name}`,
                             directory: LEGACY_DIR,
                             toDirectory: PRIMARY_DIR
-                        }).catch(() => {});
+                        }).catch(() => { });
                     }
                 }
             }
@@ -154,7 +149,7 @@ export const LogiNative = {
                 to: `${DATA_DIR}/blobs`,
                 directory: LEGACY_DIR,
                 toDirectory: PRIMARY_DIR
-            }).catch(() => {});
+            }).catch(() => { });
 
             localStorage.setItem('logi_migrated_v189', 'true');
             console.log("[Bridge] Migración Completada.");
@@ -211,7 +206,7 @@ export const LogiNative = {
                 const uri = await LogiNative.getBlobUri(first);
                 console.log(`[Probe] ARCHIVO DETECTADO: ${first}`);
                 console.log(`[Probe] URI GENERADA: ${uri}`);
-                
+
                 // Prueba de accesibilidad real
                 const test = await fetch(uri).then(r => r.ok).catch(e => false);
                 console.log(`[Probe] ¿ACCESIBLE DESDE WEBVIEW?: ${test ? 'SÍ ✅' : 'NO ❌'}`);
@@ -250,7 +245,7 @@ export const LogiNative = {
         try {
             const path = `${DATA_DIR}/${store}/${item.id}.json`;
             await withTimeout(Filesystem.writeFile({ path, data: JSON.stringify(item), directory: PRIMARY_DIR, encoding: 'utf8', recursive: true }));
-            
+
             // v191.9-OMNIVERSO: YA NO BORRAMOS LAS PARTES.
             // Los baches se mantienen como base de velocidad, y dbGetAll se encarga de mezclarlos.
             return true;
@@ -262,31 +257,19 @@ export const LogiNative = {
      * Une miles de archivos individuales en un solo Master JSON para carga instantánea.
      */
     dbCommitBatch: async (store, items) => {
-        if (!LogiNative.isNative()) {
-            if (!items || items.length === 0) return;
-            for (const item of items) {
-                const idx = _webMeta[store].findIndex(i => i.id === item.id);
-                if (idx !== -1) {
-                    _webMeta[store][idx] = item;
-                } else {
-                    _webMeta[store].push(item);
-                }
-            }
-            saveWebMeta(store);
-            return;
-        }
+        if (!LogiNative.isNative()) return;
         try {
             if (!items || items.length === 0) return;
-            
+
             console.log(`[Bridge] Consolidando ${items.length} items (FRAGMENTACIÓN ULTRA)...`);
-            
+
             // v191.9-ULTRA: Fragmentar en baches de 300 para no romper el bridge nativo
             const batchSize = 300;
             for (let i = 0; i < 10; i++) { // Max 3000 items (seguro para 1457)
                 const start = i * batchSize;
                 const part = items.slice(start, start + batchSize);
                 const path = `${DATA_DIR}/master_${store}_p${i}.json`;
-                
+
                 if (part.length > 0) {
                     await Filesystem.writeFile({
                         path,
@@ -296,7 +279,7 @@ export const LogiNative = {
                     });
                 } else {
                     // Limpiar partes sobrantes si el dataset encogió
-                    await Filesystem.deleteFile({ path, directory: PRIMARY_DIR }).catch(() => {});
+                    await Filesystem.deleteFile({ path, directory: PRIMARY_DIR }).catch(() => { });
                 }
             }
             console.log(`[Bridge] Master fragmentado persistido.`);
@@ -347,7 +330,7 @@ export const LogiNative = {
                 directory: PRIMARY_DIR,
                 recursive: true
             });
-            
+
             // Compartir para que el usuario pueda guardarlo donde quiera
             const res = await Filesystem.getUri({ path, directory: PRIMARY_DIR });
             await Share.share({
@@ -372,9 +355,9 @@ export const LogiNative = {
             await Preferences.set({ key: 'logi_logo_bin', value: base64 });
             console.log("LogiNative: Logo guardado exitosamente en Preferences.");
             return true;
-        } catch (e) { 
+        } catch (e) {
             console.error("LogiNative: Error guardando logo:", e);
-            return false; 
+            return false;
         }
     },
 
@@ -385,9 +368,9 @@ export const LogiNative = {
             const { value } = await Preferences.get({ key: 'logi_logo_bin' });
             console.log("LogiNative: Logo recuperado. Tamaño:", value ? value.length : "NULL");
             return value;
-        } catch (e) { 
+        } catch (e) {
             console.error("LogiNative: Error recuperando logo:", e);
-            return null; 
+            return null;
         }
     },
 
@@ -415,24 +398,24 @@ export const LogiNative = {
             const path = `${DATA_DIR}/catalog/proj_${id}.json`;
             const data = JSON.stringify(items);
             console.log(`[Bridge] dbPutCatalog guardando: ${path} (${data.length} bytes)`);
-            await withTimeout(Filesystem.writeFile({ 
-                path, 
-                data, 
-                directory: PRIMARY_DIR, 
-                encoding: 'utf8', 
-                recursive: true 
-            }), 10000); 
+            await withTimeout(Filesystem.writeFile({
+                path,
+                data,
+                directory: PRIMARY_DIR,
+                encoding: 'utf8',
+                recursive: true
+            }), 10000);
             return true;
-        } catch (e) { 
+        } catch (e) {
             console.error(`[Bridge] Error guardando catálogo: ${e.message}`);
-            return false; 
+            return false;
         }
     },
 
     dbGetCatalog: async (projectId) => {
         const id = projectId;
         if (!LogiNative.isNative()) return _webMeta.catalog[id] || [];
-        
+
         try {
             const normalizedId = String(id).toLowerCase().replace(/[^a-z0-9]/g, '').replace(/^p/, '');
             const paths = [
@@ -441,7 +424,7 @@ export const LogiNative = {
                 `${DATA_DIR}/catalog/${id}.json`,               // Intento 3: Sin prefijo (Legacy)
                 `${DATA_DIR}/catalog/${normalizedId}.json`      // Intento 4: Sin prefijo + Normalizado
             ];
-            
+
             console.log(`[Bridge] dbGetCatalog iniciado para: ${id}`);
 
             for (const path of paths) {
@@ -457,22 +440,22 @@ export const LogiNative = {
                 if (r2) {
                     console.log(`[Scavenger] Catálogo recuperado de DOCUMENTS: ${path}`);
                     // Opcional: Migrar a DATA para la próxima vez
-                    Filesystem.writeFile({ path, data: r2.data, directory: PRIMARY_DIR, encoding: 'utf8', recursive: true }).catch(() => {});
+                    Filesystem.writeFile({ path, data: r2.data, directory: PRIMARY_DIR, encoding: 'utf8', recursive: true }).catch(() => { });
                     return JSON.parse(r2.data);
                 }
             }
 
             console.warn(`[Bridge] Catálogo NO encontrado en ninguna ruta para ID: ${id}`);
-            
+
             // Diagnóstico: Listar qué hay en la carpeta
             const debugFiles = await Filesystem.readdir({ path: `${DATA_DIR}/catalog`, directory: PRIMARY_DIR }).catch(() => ({ files: [] }));
             const names = (debugFiles.files || []).map(f => (typeof f === 'string' ? f : f.name));
             console.log(`[Bridge] Archivos presentes en catalog/: ${JSON.stringify(names)}`);
-            
+
             return [];
-        } catch (e) { 
+        } catch (e) {
             console.error(`[Bridge] Error fatal en dbGetCatalog: ${e.message}`);
-            return []; 
+            return [];
         }
     },
 
@@ -508,7 +491,7 @@ export const LogiNative = {
             const path = `${DATA_DIR}/catalog`;
             const res = await withTimeout(Filesystem.readdir({ path, directory: PRIMARY_DIR }), 5000).catch(() => ({ files: [] }));
             const files = (res.files || []).map(f => (typeof f === 'string' ? f : f.name)).filter(n => n.endsWith('.json'));
-            
+
             const allCatalogs = [];
             for (const f of files) {
                 try {
@@ -526,7 +509,7 @@ export const LogiNative = {
 
     dbGetAll: async (store) => {
         if (!LogiNative.isNative()) return _webMeta[store] || [];
-        
+
         try {
             // 1. Carga Multi-Parte (Backup)
             const allMasterItems = [];
@@ -540,24 +523,24 @@ export const LogiNative = {
                     foundAnyPart = true;
                 }
             }
-            
+
             // 2. Escaneo Híbrido (Data + Documents)
             const path = `${DATA_DIR}/${store}`;
             const resPrimary = await Filesystem.readdir({ path, directory: PRIMARY_DIR }).catch(() => ({ files: [] }));
             const resLegacy = await Filesystem.readdir({ path, directory: LEGACY_DIR }).catch(() => ({ files: [] }));
-            
+
             const allFiles = new Set([
                 ...(resPrimary.files || []).map(f => (typeof f === 'string' ? f : f.name)),
                 ...(resLegacy.files || []).map(f => (typeof f === 'string' ? f : f.name))
             ]);
-            
+
             const jsonFiles = Array.from(allFiles).filter(n => n.endsWith('.json'));
             if (jsonFiles.length === 0 && !foundAnyPart) return [];
 
             // v192.5-TITAN: PRIORIDAD TOTAL A ARCHIVOS INDIVIDUALES
             // Si un archivo existe en disco, es una captura nueva o una ACTUALIZACIÓN.
             // Debe cargarse siempre para sobreescribir lo que haya en el bloque maestro (master_*.json).
-            const newFiles = jsonFiles; 
+            const newFiles = jsonFiles;
 
             const newItems = [];
             for (let i = 0; i < newFiles.length; i += 10) {
@@ -566,7 +549,7 @@ export const LogiNative = {
                     return await LogiNative.dbGet(store, name.replace('.json', ''));
                 }));
                 newItems.push(...results.filter(Boolean));
-                await new Promise(r => setTimeout(r, 5)); 
+                await new Promise(r => setTimeout(r, 5));
             }
 
             const uniqueResults = [];
@@ -596,7 +579,7 @@ export const LogiNative = {
         const fullBase64 = base64.includes('data:image') ? base64 : `data:image/jpeg;base64,${base64}`;
         if (!LogiNative.isNative()) {
             const db = await getDB();
-            if(!db) return false;
+            if (!db) return false;
             return new Promise(r => {
                 const tx = db.transaction(STORE_NAME, 'readwrite');
                 tx.objectStore(STORE_NAME).put(fullBase64, filename);
@@ -618,7 +601,7 @@ export const LogiNative = {
     getBlobUri: async (filename) => {
         if (!LogiNative.isNative()) {
             const db = await getDB();
-            if(!db) return null;
+            if (!db) return null;
             return new Promise(r => {
                 const tx = db.transaction(STORE_NAME, 'readonly');
                 const req = tx.objectStore(STORE_NAME).get(filename);
@@ -628,7 +611,7 @@ export const LogiNative = {
         }
         try {
             const path = `${DATA_DIR}/blobs/${filename}`;
-            
+
             // INTENTO 1: Ubicación Primaria (Data)
             const res = await Filesystem.getUri({ path, directory: PRIMARY_DIR }).catch(() => null);
             if (res) return Capacitor.convertFileSrc(res.uri);
@@ -665,7 +648,7 @@ export const LogiNative = {
     deleteBlob: async (filename) => {
         if (!LogiNative.isNative()) {
             const db = await getDB();
-            if(!db) return false;
+            if (!db) return false;
             return new Promise(r => {
                 const tx = db.transaction(STORE_NAME, 'readwrite');
                 tx.objectStore(STORE_NAME).delete(filename);
@@ -686,7 +669,7 @@ export const LogiNative = {
             try {
                 const res = await withTimeout(Filesystem.getUri({ path: `${DATA_DIR}/blobs/${it.filename}`, directory: PRIMARY_DIR }));
                 uris.push(res.uri);
-            } catch (e) {}
+            } catch (e) { }
         }
         if (uris.length > 0) await Share.share({ files: uris });
     },
@@ -710,11 +693,11 @@ export const LogiNative = {
             try {
                 // Guardamos en una carpeta temporal para compartir
                 const path = `${DATA_DIR}/temp_share/${it.filename}`;
-                await withTimeout(Filesystem.writeFile({ 
-                    path, 
-                    data: it.base64.replace(/^data:image\/jpeg;base64,/, '').replace(/^data:image\/png;base64,/, ''), 
-                    directory: PRIMARY_DIR, 
-                    recursive: true 
+                await withTimeout(Filesystem.writeFile({
+                    path,
+                    data: it.base64.replace(/^data:image\/jpeg;base64,/, '').replace(/^data:image\/png;base64,/, ''),
+                    directory: PRIMARY_DIR,
+                    recursive: true
                 }));
                 const res = await withTimeout(Filesystem.getUri({ path, directory: PRIMARY_DIR }));
                 uris.push(res.uri);
@@ -757,10 +740,10 @@ export const LogiNative = {
             const normPid = (typeof State._norm === 'function') ? State._norm(pid) : pid;
             const dirPath = LogiNative._getReportsPath(normPid);
             const path = `${dirPath}/${filename}`;
-            
+
             console.log(`[Bridge] SHARE_BLOB: pid=${pid} | path=${path}`);
-            
-            await withTimeout(Filesystem.mkdir({ path: dirPath, directory: PRIMARY_DIR, recursive: true }), 5000).catch(()=>{});
+
+            await withTimeout(Filesystem.mkdir({ path: dirPath, directory: PRIMARY_DIR, recursive: true }), 5000).catch(() => { });
             await withTimeout(Filesystem.writeFile({ path, data: base64, directory: PRIMARY_DIR, recursive: true }), 30000);
 
             const res = await withTimeout(Filesystem.getUri({ path, directory: PRIMARY_DIR }));
@@ -776,17 +759,17 @@ export const LogiNative = {
         const normPid = (typeof State._norm === 'function') ? State._norm(pid) : pid;
         const dirPath = LogiNative._getReportsPath(normPid);
         const path = `${dirPath}/${filename}`;
-        
+
         if (!LogiNative.isNative()) {
             const all = JSON.parse(localStorage.getItem('logi_reports_meta_web') || '[]');
             all.push({ filename, meta: metaObj, projectId: pid });
             localStorage.setItem('logi_reports_meta_web', JSON.stringify(all));
             return;
         }
-        
+
         try {
             const data = btoa(JSON.stringify(metaObj));
-            await withTimeout(Filesystem.mkdir({ path: dirPath, directory: PRIMARY_DIR, recursive: true }), 1000).catch(()=>{});
+            await withTimeout(Filesystem.mkdir({ path: dirPath, directory: PRIMARY_DIR, recursive: true }), 1000).catch(() => { });
             await withTimeout(Filesystem.writeFile({ path, data, directory: PRIMARY_DIR, recursive: true }));
         } catch (e) {
             console.error("[Bridge] SaveMeta Error:", e);
@@ -798,13 +781,13 @@ export const LogiNative = {
         const normPid = (typeof State._norm === 'function') ? State._norm(pid) : pid;
         const dirPath = LogiNative._getReportsPath(normPid);
         const path = `${dirPath}/${filename}`;
-        
+
         if (!LogiNative.isNative()) {
             const all = JSON.parse(localStorage.getItem('logi_reports_meta_web') || '[]');
             const entry = all.find(f => f.filename === filename && f.projectId === pid);
             return entry ? entry.meta : null;
         }
-        
+
         try {
             const res = await withTimeout(Filesystem.readFile({ path, directory: PRIMARY_DIR }));
             return JSON.parse(atob(res.data));
@@ -828,9 +811,9 @@ export const LogiNative = {
                 const size = (typeof f === 'object' && f.size) ? f.size : 0;
                 return { name, mtime, size };
             }).sort((a, b) => b.mtime - a.mtime);
-        } catch (e) { 
+        } catch (e) {
             console.warn("[Bridge] ListReports Error:", e);
-            return []; 
+            return [];
         }
     },
 
@@ -872,7 +855,7 @@ export const LogiNative = {
             const path = `${dirPath}/${filename}`;
             const res = await withTimeout(Filesystem.getUri({ path, directory: PRIMARY_DIR }));
             await Share.share({ files: [res.uri] });
-        } catch (e) {}
+        } catch (e) { }
     },
 
     viewReport: async (filename) => {
@@ -916,9 +899,9 @@ export const LogiNative = {
                 directory: PRIMARY_DIR
             }));
             return true;
-        } catch (e) { 
+        } catch (e) {
             console.error("RenameReport Error:", e);
-            return false; 
+            return false;
         }
     }
 };

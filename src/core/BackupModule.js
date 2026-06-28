@@ -424,5 +424,146 @@ export const BackupModule = {
 
     async _getProjectCatalog(pid) {
         return await LogiNative.dbGetCatalog(pid) || [];
+    },
+
+    async importFromLegacyIndexedDB(onProgress) {
+        if (this.isProcessing) return;
+        this.isProcessing = true;
+        this.progressCallback = onProgress;
+        this._showOverlay();
+
+        try {
+            this._notifyProgress(0, 100, "Conectando con base de datos de Logi Legacy...");
+            
+            // 1. Abrir base de datos antigua "logi2_db_v1"
+            const legacyDb = await new Promise((resolve) => {
+                const req = indexedDB.open("logi2_db_v1");
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => resolve(null);
+            });
+
+            if (!legacyDb) {
+                throw new Error("No se encontró la base de datos de Logi Legacy en este navegador/dispositivo.");
+            }
+
+            // 2. Cargar proyectos de localStorage "logi2_projects"
+            let legacyProjects = [];
+            try {
+                legacyProjects = JSON.parse(localStorage.getItem("logi2_projects") || "[]") || [];
+            } catch (e) {
+                console.error("Error al leer proyectos de legacy:", e);
+            }
+
+            if (legacyProjects.length === 0) {
+                // Generar un proyecto por defecto si hay metas
+                legacyProjects = [{ id: 'p_default', name: 'Proyecto Importado', createdAt: Date.now() }];
+            }
+
+            this._notifyProgress(10, 100, "Importando proyectos...");
+
+            // 3. Importar proyectos a la base de datos de Kinetics
+            for (const p of legacyProjects) {
+                await LogiNative.dbPut('meta', {
+                    id: p.id,
+                    name: p.name,
+                    created: p.createdAt || p.created || Date.now()
+                });
+            }
+
+            // 4. Leer ítems de la base de datos antigua (metas)
+            this._notifyProgress(30, 100, "Leyendo registros antiguos...");
+            const legacyItems = await new Promise((resolve, reject) => {
+                try {
+                    const tx = legacyDb.transaction("items_meta", "readonly");
+                    const store = tx.objectStore("items_meta");
+                    const req = store.getAll();
+                    req.onsuccess = () => resolve(req.result || []);
+                    req.onerror = () => reject(req.error || new Error("Error leyendo items_meta"));
+                } catch(e) {
+                    reject(e);
+                }
+            });
+
+            if (legacyItems.length === 0) {
+                throw new Error("No se encontraron registros de fotos en Logi Legacy.");
+            }
+
+            const total = legacyItems.length;
+            this._notifyProgress(40, 100, `Se encontraron ${total} fotos. Transfiriendo...`);
+
+            // 5. Transferir ítems y blobs
+            const importedItemsChunk = [];
+            let count = 0;
+
+            for (const it of legacyItems) {
+                count++;
+                const progressPct = 40 + Math.round((count / total) * 50); // Mapeado de 40% a 90%
+                
+                if (count % 10 === 0 || count === total) {
+                    this._notifyProgress(progressPct, 100, `Transfiriendo foto ${count} de ${total}...`);
+                    await new Promise(r => setTimeout(r, 0));
+                }
+
+                try {
+                    // Obtener el blob de la base de datos antigua
+                    const blobData = await new Promise((resolve) => {
+                        try {
+                            const tx = legacyDb.transaction("blobs", "readonly");
+                            const req = tx.objectStore("blobs").get(it.id);
+                            req.onsuccess = () => resolve(req.result ? req.result.blob : null);
+                            req.onerror = () => resolve(null);
+                        } catch(e) {
+                            resolve(null);
+                        }
+                    });
+
+                    const cleanItem = {
+                        id: String(it.id || Date.now() + Math.random()),
+                        descripcion: String(it.descripcion || ''),
+                        actividad: String(it.actividad || it.itemCode || 'GENERAL'),
+                        createdAt: Number(it.createdAt || it.id || Date.now()),
+                        projectId: String(it.projectId || it.proyecto_id || it.proyecto || 'p_default'),
+                        projectName: String(it.projectName || it.proyecto || 'Sin Proyecto'),
+                        filename: String(it.filename || `${it.id}.jpg`)
+                    };
+
+                    if (blobData) {
+                        // Convertir Blob a Base64
+                        const base64 = await new Promise((res) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => res(reader.result);
+                            reader.readAsDataURL(blobData);
+                        });
+                        await LogiNative.storeBlob(cleanItem.filename, base64);
+                    }
+
+                    importedItemsChunk.push(cleanItem);
+                } catch (loopErr) {
+                    console.error(`[LegacyMigrate] Error en ítem ${count}:`, loopErr);
+                }
+            }
+
+            // 6. Consolidar registros en la base de datos de Kinetics
+            this._notifyProgress(95, 100, "Guardando base de datos...");
+            await LogiNative.dbCommitBatch('items_meta', importedItemsChunk);
+
+            // Auto-seleccionar el primer proyecto importado
+            if (legacyProjects.length > 0) {
+                localStorage.setItem('last_project_id', legacyProjects[0].id);
+            }
+
+            this._notifyProgress(100, 100, "Completado");
+            await new Promise(r => setTimeout(r, 500));
+
+            alert(`Migración completada con éxito: ${importedItemsChunk.length} fotos transferidas directamente.\nLa aplicación se reiniciará.`);
+            window.location.reload();
+
+        } catch (e) {
+            console.error("Legacy Migration Error:", e);
+            alert("Error en migración: " + e.message);
+        } finally {
+            this.isProcessing = false;
+            this._hideOverlay();
+        }
     }
 };

@@ -116,6 +116,15 @@ export const SettingsView = {
                 BackupModule.exportTotal((p) => this.updateProgress(p));
             };
         }
+
+        const btnImportLegacy = document.getElementById('btn-import-legacy-local');
+        if (btnImportLegacy) {
+            btnImportLegacy.onclick = () => {
+                if (confirm("¿Deseas importar todos los proyectos y fotos de la versión Legacy guardados en este dispositivo?\n\nEsta operación copiará los datos localmente sin borrar nada de Legacy.")) {
+                    BackupModule.importFromLegacyIndexedDB((p) => this.updateProgress(p));
+                }
+            };
+        }
     },
 
     updateProgress(p) {
