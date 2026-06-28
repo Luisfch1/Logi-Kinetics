@@ -38,7 +38,7 @@
     -webkit-tap-highlight-color: transparent;
 }
 
-body {
+html, body {
     background-color: var(--bg-main);
     color: var(--text-primary);
     font-family: 'Inter', system-ui, sans-serif;
