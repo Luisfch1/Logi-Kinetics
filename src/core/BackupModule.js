@@ -233,6 +233,16 @@ export const BackupModule = {
         // 1. Mapeo y Migración de Datos (v190.8)
         let itemsToImport = data.items || data.capturas || [];
         const projectsToImport = data.projects || [];
+        
+        // v2026-06-28: Compatibilidad con Backups de Proyecto Único (Legacy)
+        if (projectsToImport.length === 0 && data.projectId && data.projectName) {
+            projectsToImport.push({
+                id: data.projectId,
+                name: data.projectName,
+                createdAt: data.createdAt || data.created || Date.now()
+            });
+        }
+        
         const catalogToImport = data.catalog || [];
 
         const total = itemsToImport.length;
@@ -324,6 +334,11 @@ export const BackupModule = {
 
         this._notifyProgress(total, total, "Consolidando registros (ULTRA)...");
         await LogiNative.dbCommitBatch('items_meta', importedItemsChunk);
+        
+        // v2026-06-28: Guardar el proyecto restaurado como el último activo para abrirlo al reiniciar
+        if (projectsToImport.length > 0) {
+            localStorage.setItem('last_project_id', projectsToImport[0].id);
+        }
         
         alert(`Reconciliación completada: ${importedItemsChunk.length} ítems restaurados.\nLa aplicación se reiniciará.`);
         window.location.reload();
