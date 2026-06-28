@@ -25,8 +25,13 @@ let _dbPromise = null;
 function getDB() {
     if (_dbPromise) return _dbPromise;
     _dbPromise = new Promise((resolve) => {
-        const req = indexedDB.open(DB_NAME, 1);
-        req.onupgradeneeded = () => req.result.createObjectStore(STORE_NAME);
+        const req = indexedDB.open(DB_NAME, 2);
+        req.onupgradeneeded = () => {
+            const db = req.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME);
+            }
+        };
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => resolve(null);
     });
