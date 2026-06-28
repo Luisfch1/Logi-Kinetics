@@ -16,7 +16,7 @@ export const BackupModule = {
     async reconcile() {
         if (this.isProcessing) return;
         if (!LogiNative.isNative()) return;
-        
+
         try {
             // 1. Verificar si ya se reconcilió en esta sesión o si hay datos
             if (State._allItems.length > 0) return;
@@ -63,7 +63,7 @@ export const BackupModule = {
 
             const data = JSON.parse(raw);
             await this._processBackupData(data); // Extraer lógica común
-            
+
         } catch (e) {
             console.error("Local Import Error:", e);
             alert("Error de reconciliación: " + e.message);
@@ -92,17 +92,42 @@ export const BackupModule = {
             const backupData = {
                 schemaVersion: 2,
                 type: 'project',
-                app: 'Logi Kinetic',
+                projectId: projectId,
+                projectName: project.name,
+                app: 'Logi', // Compatible con legacy
                 createdAt: new Date().toISOString(),
-                projects: [project],
-                catalog: catalog.filter(c => c.projectId === projectId || !c.projectId),
-                items: items
+                settings: {
+                    theme: 'dark',
+                    accent: 'green',
+                    project: project.name
+                },
+                catalog: (catalog || []).map(r => ({
+                    projectId: projectId,
+                    item: r.item || "",
+                    descripcion: r.descripcion || "",
+                    unidad: r.unidad || "",
+                    createdAt: r.createdAt || Date.now()
+                })),
+                items: items.map(it => ({
+                    id: it.id,
+                    fecha: new Date(it.createdAt).toISOString().split('T')[0],
+                    proyecto: it.projectName || project.name,
+                    descripcion: it.descripcion || '',
+                    done: false,
+                    mime: 'image/jpeg',
+                    createdAt: it.createdAt,
+                    hasLogo: false,
+                    itemCode: it.actividad || '',
+                    itemDesc: '',
+                    projectId: it.projectId || projectId,
+                    projectName: it.projectName || project.name
+                }))
             };
 
             zip.file("backup.json", JSON.stringify(backupData, null, 2));
 
-            // 2. Agregar Fotos (Ruta Legacy: photos/[projectId]/[itemId].jpg)
-            const photoFolder = zip.folder(`photos/${projectId}`);
+            // 2. Agregar Fotos (Formato Plano Legacy: photos/[itemId].jpg)
+            const photoFolder = zip.folder("photos");
             let count = 0;
             const total = items.length;
 
@@ -118,9 +143,9 @@ export const BackupModule = {
 
             this._notifyProgress(total, total, "Generando archivo ZIP...");
             const blob = await zip.generateAsync({ type: "blob" });
-            
+
             // 3. Guardar/Compartir
-            const filename = `Backup_${project.name.replace(/\s+/g, '_')}_${Date.now()}.zip`;
+            const filename = `logi-backup-${new Date().toISOString().replace(new RegExp('[-' + ':T.]', 'g'), '').slice(0, 14)}.zip`;
             await this._saveAndShareZip(blob, filename);
 
         } catch (e) {
@@ -144,40 +169,70 @@ export const BackupModule = {
             const zip = new JSZip();
             this._notifyProgress(0, 1, "Iniciando respaldo total...");
 
-            // 1. Metadatos Globales
+            const firstId = State.projects[0]?.id || 'p_default';
+            const allCatalog = await this._getFullCatalog();
+
+            // 1. Metadatos Globales (Esquema Legacy Total)
             const backupData = {
                 schemaVersion: 2,
                 type: 'all',
-                app: 'Logi Kinetic',
+                app: 'Logi', // Compatible con legacy
                 createdAt: new Date().toISOString(),
-                projects: State.projects,
-                items: State._allItems,
-                catalog: await this._getFullCatalog(),
                 settings: {
-                    accentColor: State.accentColor
-                }
+                    theme: 'dark',
+                    accent: 'green'
+                },
+                projects: State.projects.map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    createdAt: p.created || Date.now()
+                })),
+                activeProjectId: State.currentProject?.id || firstId,
+                catalog: (allCatalog || []).map(r => ({
+                    projectId: r.projectId || firstId,
+                    item: r.item || "",
+                    descripcion: r.descripcion || "",
+                    unidad: r.unidad || "",
+                    createdAt: r.createdAt || Date.now()
+                })),
+                items: State._allItems.map(it => ({
+                    id: it.id,
+                    fecha: new Date(it.createdAt).toISOString().split('T')[0],
+                    proyecto: it.projectName || '',
+                    descripcion: it.descripcion || '',
+                    done: false,
+                    mime: 'image/jpeg',
+                    createdAt: it.createdAt,
+                    hasLogo: false,
+                    itemCode: it.actividad || '',
+                    itemDesc: '',
+                    projectId: it.projectId || firstId,
+                    projectName: it.projectName || ''
+                }))
             };
 
             zip.file("backup.json", JSON.stringify(backupData, null, 2));
 
-            // 2. Fotos organizadas por proyecto
+            // 2. Fotos organizadas por proyecto (photos/[projectId]/[itemId].jpg)
+            const photosFolder = zip.folder("photos");
             let count = 0;
             const total = State._allItems.length;
 
             for (const it of State._allItems) {
                 this._notifyProgress(count, total, `Procesando fotos totales... (${count}/${total})`);
-                const pid = it.projectId || 'unknown';
+                const pid = it.projectId || firstId;
+                const projectFolder = photosFolder.folder(pid);
                 const base64 = await LogiNative.readBlobAsBase64(it.filename);
                 if (base64) {
                     const rawData = base64.split(',')[1];
-                    zip.file(`photos/${pid}/${it.id}.jpg`, rawData, { base64: true });
+                    projectFolder.file(`${it.id}.jpg`, rawData, { base64: true });
                 }
                 count++;
             }
 
             this._notifyProgress(total, total, "Generando archivo final...");
             const blob = await zip.generateAsync({ type: "blob" });
-            const filename = `Respaldo_TOTAL_Logi_${new Date().toISOString().split('T')[0]}.zip`;
+            const filename = `logi-backup-TOTAL-${new Date().toISOString().replace(new RegExp('[-' + ':T.]', 'g'), '').slice(0, 14)}.zip`;
             await this._saveAndShareZip(blob, filename);
 
         } catch (e) {
@@ -185,6 +240,7 @@ export const BackupModule = {
             alert("Error: " + e.message);
         } finally {
             this.isProcessing = false;
+            this._notifyProgress(100, 100, "Completado");
         }
     },
 
@@ -201,30 +257,30 @@ export const BackupModule = {
             try {
                 this._notifyProgress(0, 1, "Analizando archivo...");
                 const zip = await JSZip.loadAsync(file);
-            
-            // Búsqueda recursiva de backup.json en caso de carpetas anidadas
-            let jsonFile = zip.file("backup.json");
-            if (!jsonFile) {
-                const foundKey = Object.keys(zip.files).find(k => k.endsWith("backup.json") && !k.includes("__MACOSX"));
-                if (foundKey) jsonFile = zip.file(foundKey);
+
+                // Búsqueda recursiva de backup.json en caso de carpetas anidadas
+                let jsonFile = zip.file("backup.json");
+                if (!jsonFile) {
+                    const foundKey = Object.keys(zip.files).find(k => k.endsWith("backup.json") && !k.includes("__MACOSX"));
+                    if (foundKey) jsonFile = zip.file(foundKey);
+                }
+
+                if (!jsonFile) throw new Error("No se encontró backup.json en el archivo ZIP");
+
+                const rawJson = await jsonFile.async("string");
+                const data = JSON.parse(rawJson);
+
+                await this._processBackupData(data, zip);
+
+            } catch (e) {
+                console.error("Import Error:", e);
+                alert("Error cargando respaldo: " + e.message);
+            } finally {
+                this.isProcessing = false;
+                this._hideOverlay();
             }
-            
-            if (!jsonFile) throw new Error("No se encontró backup.json en el archivo ZIP");
-
-            const rawJson = await jsonFile.async("string");
-            const data = JSON.parse(rawJson);
-
-            await this._processBackupData(data, zip);
-
-        } catch (e) {
-            console.error("Import Error:", e);
-            alert("Error cargando respaldo: " + e.message);
-        } finally {
-            this.isProcessing = false;
-            this._hideOverlay();
-        }
-    }, 100);
-},
+        }, 100);
+    },
 
     /**
      * Motor de procesamiento central v191.9-OAK
@@ -233,7 +289,7 @@ export const BackupModule = {
         // 1. Mapeo y Migración de Datos (v190.8)
         let itemsToImport = data.items || data.capturas || [];
         const projectsToImport = data.projects || [];
-        
+
         // v2026-06-28: Compatibilidad con Backups de Proyecto Único (Legacy)
         if (projectsToImport.length === 0 && data.projectId && data.projectName) {
             projectsToImport.push({
@@ -242,7 +298,7 @@ export const BackupModule = {
                 createdAt: data.createdAt || data.created || Date.now()
             });
         }
-        
+
         const catalogToImport = data.catalog || [];
 
         const total = itemsToImport.length;
@@ -301,10 +357,10 @@ export const BackupModule = {
         for (const it of itemsToImport) {
             const currentCount = ++count;
             if (currentCount % 50 === 0) {
-               this._notifyProgress(currentCount, total, `Restaurando: ${currentCount}/${total}`);
-               await new Promise(r => setTimeout(r, 5)); 
+                this._notifyProgress(currentCount, total, `Restaurando: ${currentCount}/${total}`);
+                await new Promise(r => setTimeout(r, 5));
             }
-            
+
             try {
                 const cleanItem = {
                     id: String(it.id || Date.now() + Math.random()),
@@ -320,9 +376,50 @@ export const BackupModule = {
                     const targetFile = cleanItem.filename.toLowerCase();
                     const zipKey = filesIndex[targetFile];
                     const photoFile = zipKey ? zip.file(zipKey) : null;
+                    let photoLoaded = false;
+
                     if (photoFile) {
-                        const base64 = await photoFile.async("base64");
-                        await LogiNative.storeBlob(cleanItem.filename, base64);
+                        // Rolldown / JSZip metadata check for uncompressed size
+                        const isZeroByte = photoFile._data && photoFile._data.uncompressedSize === 0;
+                        if (!isZeroByte) {
+                            const base64 = await photoFile.async("base64");
+                            if (base64 && base64.trim().length > 0) {
+                                await LogiNative.storeBlob(cleanItem.filename, base64);
+                                photoLoaded = true;
+                            }
+                        }
+                    }
+
+                    // Fallback adaptativo: Si la foto en el ZIP está vacía o no existe, intentamos buscarla en la DB Legacy local
+                    if (!photoLoaded) {
+                        try {
+                            const legacyDb = await new Promise((resolve) => {
+                                const req = indexedDB.open("logi2_db_v1");
+                                req.onsuccess = () => resolve(req.result);
+                                req.onerror = () => resolve(null);
+                            });
+                            if (legacyDb) {
+                                const blobData = await new Promise((resolve) => {
+                                    const tx = legacyDb.transaction("blobs", "readonly");
+                                    const req = tx.objectStore("blobs").get(cleanItem.id);
+                                    req.onsuccess = () => resolve(req.result ? req.result.blob : null);
+                                    req.onerror = () => resolve(null);
+                                });
+                                if (blobData) {
+                                    const base64 = await new Promise((res) => {
+                                        const reader = new FileReader();
+                                        reader.onloadend = () => res(reader.result);
+                                        reader.readAsDataURL(blobData);
+                                    });
+                                    await LogiNative.storeBlob(cleanItem.filename, base64);
+                                    photoLoaded = true;
+                                    console.log(`[Backup Adaptativo] Foto ${cleanItem.id} rescatada localmente desde DB Legacy`);
+                                }
+                                legacyDb.close();
+                            }
+                        } catch (fallbackErr) {
+                            console.warn(`[Backup Adaptativo] Error en fallback local para ${cleanItem.id}:`, fallbackErr);
+                        }
                     }
                 }
 
@@ -334,12 +431,12 @@ export const BackupModule = {
 
         this._notifyProgress(total, total, "Consolidando registros (ULTRA)...");
         await LogiNative.dbCommitBatch('items_meta', importedItemsChunk);
-        
+
         // v2026-06-28: Guardar el proyecto restaurado como el último activo para abrirlo al reiniciar
         if (projectsToImport.length > 0) {
             localStorage.setItem('last_project_id', projectsToImport[0].id);
         }
-        
+
         alert(`Reconciliación completada: ${importedItemsChunk.length} ítems restaurados.\nLa aplicación se reiniciará.`);
         window.location.reload();
     },
@@ -391,7 +488,7 @@ export const BackupModule = {
         const bar = document.getElementById('backup-bar');
         const text = document.getElementById('backup-msg');
         const percent = total > 0 ? Math.round((current / total) * 100) : 0;
-        
+
         if (bar) bar.style.width = `${percent}%`;
         if (text) text.innerText = msg;
 
@@ -424,146 +521,5 @@ export const BackupModule = {
 
     async _getProjectCatalog(pid) {
         return await LogiNative.dbGetCatalog(pid) || [];
-    },
-
-    async importFromLegacyIndexedDB(onProgress) {
-        if (this.isProcessing) return;
-        this.isProcessing = true;
-        this.progressCallback = onProgress;
-        this._showOverlay();
-
-        try {
-            this._notifyProgress(0, 100, "Conectando con base de datos de Logi Legacy...");
-            
-            // 1. Abrir base de datos antigua "logi2_db_v1"
-            const legacyDb = await new Promise((resolve) => {
-                const req = indexedDB.open("logi2_db_v1");
-                req.onsuccess = () => resolve(req.result);
-                req.onerror = () => resolve(null);
-            });
-
-            if (!legacyDb) {
-                throw new Error("No se encontró la base de datos de Logi Legacy en este navegador/dispositivo.");
-            }
-
-            // 2. Cargar proyectos de localStorage "logi2_projects"
-            let legacyProjects = [];
-            try {
-                legacyProjects = JSON.parse(localStorage.getItem("logi2_projects") || "[]") || [];
-            } catch (e) {
-                console.error("Error al leer proyectos de legacy:", e);
-            }
-
-            if (legacyProjects.length === 0) {
-                // Generar un proyecto por defecto si hay metas
-                legacyProjects = [{ id: 'p_default', name: 'Proyecto Importado', createdAt: Date.now() }];
-            }
-
-            this._notifyProgress(10, 100, "Importando proyectos...");
-
-            // 3. Importar proyectos a la base de datos de Kinetics
-            for (const p of legacyProjects) {
-                await LogiNative.dbPut('meta', {
-                    id: p.id,
-                    name: p.name,
-                    created: p.createdAt || p.created || Date.now()
-                });
-            }
-
-            // 4. Leer ítems de la base de datos antigua (metas)
-            this._notifyProgress(30, 100, "Leyendo registros antiguos...");
-            const legacyItems = await new Promise((resolve, reject) => {
-                try {
-                    const tx = legacyDb.transaction("items_meta", "readonly");
-                    const store = tx.objectStore("items_meta");
-                    const req = store.getAll();
-                    req.onsuccess = () => resolve(req.result || []);
-                    req.onerror = () => reject(req.error || new Error("Error leyendo items_meta"));
-                } catch(e) {
-                    reject(e);
-                }
-            });
-
-            if (legacyItems.length === 0) {
-                throw new Error("No se encontraron registros de fotos en Logi Legacy.");
-            }
-
-            const total = legacyItems.length;
-            this._notifyProgress(40, 100, `Se encontraron ${total} fotos. Transfiriendo...`);
-
-            // 5. Transferir ítems y blobs
-            const importedItemsChunk = [];
-            let count = 0;
-
-            for (const it of legacyItems) {
-                count++;
-                const progressPct = 40 + Math.round((count / total) * 50); // Mapeado de 40% a 90%
-                
-                if (count % 10 === 0 || count === total) {
-                    this._notifyProgress(progressPct, 100, `Transfiriendo foto ${count} de ${total}...`);
-                    await new Promise(r => setTimeout(r, 0));
-                }
-
-                try {
-                    // Obtener el blob de la base de datos antigua
-                    const blobData = await new Promise((resolve) => {
-                        try {
-                            const tx = legacyDb.transaction("blobs", "readonly");
-                            const req = tx.objectStore("blobs").get(it.id);
-                            req.onsuccess = () => resolve(req.result ? req.result.blob : null);
-                            req.onerror = () => resolve(null);
-                        } catch(e) {
-                            resolve(null);
-                        }
-                    });
-
-                    const cleanItem = {
-                        id: String(it.id || Date.now() + Math.random()),
-                        descripcion: String(it.descripcion || ''),
-                        actividad: String(it.actividad || it.itemCode || 'GENERAL'),
-                        createdAt: Number(it.createdAt || it.id || Date.now()),
-                        projectId: String(it.projectId || it.proyecto_id || it.proyecto || 'p_default'),
-                        projectName: String(it.projectName || it.proyecto || 'Sin Proyecto'),
-                        filename: String(it.filename || `${it.id}.jpg`)
-                    };
-
-                    if (blobData) {
-                        // Convertir Blob a Base64
-                        const base64 = await new Promise((res) => {
-                            const reader = new FileReader();
-                            reader.onloadend = () => res(reader.result);
-                            reader.readAsDataURL(blobData);
-                        });
-                        await LogiNative.storeBlob(cleanItem.filename, base64);
-                    }
-
-                    importedItemsChunk.push(cleanItem);
-                } catch (loopErr) {
-                    console.error(`[LegacyMigrate] Error en ítem ${count}:`, loopErr);
-                }
-            }
-
-            // 6. Consolidar registros en la base de datos de Kinetics
-            this._notifyProgress(95, 100, "Guardando base de datos...");
-            await LogiNative.dbCommitBatch('items_meta', importedItemsChunk);
-
-            // Auto-seleccionar el primer proyecto importado
-            if (legacyProjects.length > 0) {
-                localStorage.setItem('last_project_id', legacyProjects[0].id);
-            }
-
-            this._notifyProgress(100, 100, "Completado");
-            await new Promise(r => setTimeout(r, 500));
-
-            alert(`Migración completada con éxito: ${importedItemsChunk.length} fotos transferidas directamente.\nLa aplicación se reiniciará.`);
-            window.location.reload();
-
-        } catch (e) {
-            console.error("Legacy Migration Error:", e);
-            alert("Error en migración: " + e.message);
-        } finally {
-            this.isProcessing = false;
-            this._hideOverlay();
-        }
     }
 };

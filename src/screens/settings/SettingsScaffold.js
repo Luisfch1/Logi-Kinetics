@@ -144,24 +144,6 @@ export const SettingsScaffold = {
                                 </button>
                             </div>
                         </div>
-
-                        <!-- Importar de Legacy (Local Shared Storage) -->
-                        <div class="glass-card rounded-xl p-6 flex items-center justify-between border-l-2 border-l-primary/30">
-                            <div class="flex items-center gap-4">
-                                <div class="text-primary">
-                                    <span class="material-symbols-outlined text-2xl">move_down</span>
-                                </div>
-                                <div class="flex-1">
-                                    <p class="font-headline text-sm font-bold">Importar de Logi Legacy</p>
-                                    <p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mt-0.5">Transferir fotos y proyectos locales</p>
-                                </div>
-                            </div>
-                            <div class="flex gap-2">
-                                <button id="btn-import-legacy-local" title="Importar desde Legacy" class="px-4 h-10 rounded-lg bg-surface-container-high border border-outline-variant flex items-center gap-2 hover:text-primary hover:border-primary/40 transition-all active:scale-90 text-[10px] font-black uppercase font-headline">
-                                    <span class="material-symbols-outlined text-base">swap_calls</span> MIGRAR
-                                </button>
-                            </div>
-                        </div>
                     </div>
                 </section>
 

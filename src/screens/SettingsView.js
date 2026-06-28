@@ -18,7 +18,7 @@ export const SettingsView = {
     },
     rebind() {
         console.log('[Settings] Rebinding events...');
-        
+
         // Color de Acento
         const colorButtons = document.querySelectorAll('.glass-card button[class*="rounded-full"]');
         colorButtons.forEach(btn => {
@@ -26,7 +26,7 @@ export const SettingsView = {
                 const color = window.getComputedStyle(btn).backgroundColor;
                 const rgb = color.match(/\d+/g);
                 const hex = "#" + ((1 << 24) + (+rgb[0] << 16) + (+rgb[1] << 8) + +rgb[2]).toString(16).slice(1);
-                
+
                 State.setAccentColor(hex);
                 this.updateColorSelectionUI(hex);
             };
@@ -98,7 +98,7 @@ export const SettingsView = {
                     BackupModule.importBackup(file, (p) => this.updateProgress(p));
                 }
             };
-            
+
             [btnBackupProjUp, btnBackupTotalUp].forEach(btn => {
                 if (!btn) return;
                 btn.onclick = () => {
@@ -114,15 +114,6 @@ export const SettingsView = {
         if (btnBackupTotalDown) {
             btnBackupTotalDown.onclick = () => {
                 BackupModule.exportTotal((p) => this.updateProgress(p));
-            };
-        }
-
-        const btnImportLegacy = document.getElementById('btn-import-legacy-local');
-        if (btnImportLegacy) {
-            btnImportLegacy.onclick = () => {
-                if (confirm("¿Deseas importar todos los proyectos y fotos de la versión Legacy guardados en este dispositivo?\n\nEsta operación copiará los datos localmente sin borrar nada de Legacy.")) {
-                    BackupModule.importFromLegacyIndexedDB((p) => this.updateProgress(p));
-                }
             };
         }
     },
@@ -164,12 +155,12 @@ export const SettingsView = {
             const btnColorRaw = window.getComputedStyle(btn).backgroundColor;
             const rgb = btnColorRaw.match(/\d+/g);
             const btnHex = "#" + ((1 << 24) + (+rgb[0] << 16) + (+rgb[1] << 8) + +rgb[2]).toString(16).slice(1);
-            
+
             if (btnHex.toLowerCase() === activeColor.toLowerCase()) {
                 btn.classList.add('ring-2', 'ring-primary', 'ring-offset-4', 'ring-offset-surface-container');
                 btn.classList.remove('opacity-40');
                 btn.style.boxShadow = `0 0 12px ${activeColor}66`;
-                
+
                 // Actualizar texto label
                 const label = btn.parentElement.nextElementSibling;
                 if (label) {
