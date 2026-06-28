@@ -257,7 +257,19 @@ export const LogiNative = {
      * Une miles de archivos individuales en un solo Master JSON para carga instantánea.
      */
     dbCommitBatch: async (store, items) => {
-        if (!LogiNative.isNative()) return;
+        if (!LogiNative.isNative()) {
+            if (!items || items.length === 0) return;
+            for (const item of items) {
+                const idx = _webMeta[store].findIndex(i => i.id === item.id);
+                if (idx !== -1) {
+                    _webMeta[store][idx] = item;
+                } else {
+                    _webMeta[store].push(item);
+                }
+            }
+            saveWebMeta(store);
+            return;
+        }
         try {
             if (!items || items.length === 0) return;
             
