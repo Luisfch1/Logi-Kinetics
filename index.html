@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html class="dark" lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport">
+    <title>Logi Kinetic | Neon Architect</title>
+    
+    <!-- Fuentes Stitch -->
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;800;900&family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+    
+
+    <style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+      }
+      .glass-card {
+        background: var(--surface-glass);
+        border: 1px solid var(--primary-border);
+        backdrop-filter: blur(12px);
+      }
+      .glow-border {
+        box-shadow: 0 0 10px var(--primary-glow);
+      }
+      .animate-in {
+        animation: fadeIn 0.5s ease-out forwards;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+    </style>
+</head>
+<body class="bg-black font-body text-white selection:bg-primary/30 overflow-hidden">
+
+    <div id="app" class="flex flex-col h-screen w-screen overflow-hidden">
+        <!-- === GLOBAL HEADER (Portrait Only) === -->
+        <header id="global-header" class="landscape:hidden w-full z-50 px-6 py-4 flex justify-between items-center bg-black border-b border-white/5 transition-colors">
+            <div class="flex items-center gap-3 group cursor-pointer active:opacity-50 transition-opacity" onclick="window.ProjectModule?.openManager()">
+                <h1 class="font-headline font-black tracking-tighter uppercase text-base text-primary drop-shadow-[0_0_8px_var(--primary-glow)]">LOGI</h1>
+                <span class="material-symbols-outlined text-white/20 text-lg">chevron_right</span>
+                <span id="header-project-name" class="font-headline font-bold tracking-tight uppercase text-xs text-white/60">PROYECTO</span>
+            </div>
+            <div id="header-actions" class="flex items-center gap-2">
+                <div id="btn-gallery-grid-toggle" class="hidden w-10 h-10 rounded-full bg-white/5 flex items-center justify-center cursor-pointer hover:bg-white/10 active:scale-95 transition-all group overflow-hidden">
+                    <span id="grid-toggle-icon" class="material-symbols-outlined text-white/40 text-[22px] group-hover:text-primary transition-colors">grid_view</span>
+                </div>
+                <div id="btn-theme-toggle" class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center cursor-pointer hover:bg-white/10 active:scale-95 transition-all group">
+                    <span id="theme-toggle-icon" class="material-symbols-outlined text-white/40 text-xl group-hover:text-primary transition-colors">dark_mode</span>
+                </div>
+                <div id="btn-app-settings" class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center cursor-pointer hover:bg-white/10 active:scale-95 transition-all group">
+                    <span class="material-symbols-outlined text-white/40 text-xl group-hover:text-primary transition-colors">settings</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- === VIEWPORT (Aquí el Arquitecto inyecta las pantallas) === -->
+        <div id="view-container" class="flex-1 w-full h-full relative overflow-hidden flex flex-col">
+            <!-- Screen Injected Here -->
+        </div>
+
+        <!-- === GLOBAL NAVIGATION (Portrait Only) === -->
+        <nav id="bottom-nav" class="landscape:hidden w-full z-50 bg-black border-t border-white/5 flex justify-between items-center px-10 pt-3 pb-safe h-20">
+            <a id="nav-capture" class="nav-tab flex flex-col items-center justify-center transition-all rounded-full w-14 h-14 cursor-pointer">
+                <span class="material-symbols-outlined text-[26px]" style="font-variation-settings: 'FILL' 1;">photo_camera</span>
+            </a>
+            <a id="nav-gallery" class="nav-tab flex flex-col items-center justify-center transition-all rounded-full w-14 h-14 cursor-pointer">
+                <span class="material-symbols-outlined text-[26px]">grid_view</span>
+            </a>
+            <a id="nav-export" class="nav-tab flex flex-col items-center justify-center transition-all rounded-full w-14 h-14 cursor-pointer">
+                <span class="material-symbols-outlined text-[26px]">ios_share</span>
+            </a>
+            <a id="nav-reports" class="nav-tab flex flex-col items-center justify-center transition-all rounded-full w-14 h-14 cursor-pointer">
+                <span class="material-symbols-outlined text-[26px]">analytics</span>
+            </a>
+        </nav>
+    </div>
+
+    <!-- Modales Globales (No se borran al cambiar pantalla) -->
+    <div id="projects-overlay"></div>
+    <div id="debug-console-overlay" class="fixed inset-0 z-[9999] hidden bg-black/95 backdrop-blur-xl p-8 overflow-y-auto font-mono text-[10px] text-primary">
+        <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
+            <h2 class="text-xl font-black italic text-primary">ULTIMATE DEBUG CONSOLE (v190.1)</h2>
+            <button onclick="document.getElementById('debug-console-overlay').classList.add('hidden')" class="bg-primary text-black px-4 py-2 rounded-full font-black">CERRAR</button>
+        </div>
+        <div id="debug-console-content" class="space-y-6">
+            <!-- Content injected via main.js -->
+        </div>
+    </div>
+    <div id="custom-dialog-overlay" class="fixed inset-0 z-[200] hidden items-center justify-center bg-black/80 backdrop-blur-sm p-6">
+        <div class="bg-[#111111] border border-white/10 w-full max-w-sm rounded-[2rem] p-8 space-y-6 shadow-2xl scale-95 opacity-0 transition-all duration-300 transform" id="dialog-content">
+            <div class="space-y-2 text-center">
+                <h3 id="dialog-title" class="font-headline font-black text-primary uppercase tracking-widest text-sm">PROYECTO</h3>
+                <p id="dialog-message" class="text-white/40 text-[10px] leading-relaxed uppercase font-medium">Contenido del mensaje...</p>
+            </div>
+            
+            <div id="dialog-input-container" class="hidden">
+                <input id="dialog-input" type="text" class="w-full bg-white/5 border border-white/10 rounded-xl h-12 px-4 text-xs text-white placeholder:text-white/20 outline-none focus:border-primary/50 transition-all uppercase" placeholder="ESCRIBE AQUÍ...">
+            </div>
+
+            <div class="flex gap-3">
+                <button id="dialog-btn-cancel" class="flex-1 h-12 rounded-xl bg-white/5 text-white/40 text-[10px] font-bold uppercase hover:bg-white/10 transition-all">Cancelar</button>
+                <button id="dialog-btn-confirm" class="flex-1 h-12 rounded-xl bg-primary text-black text-[10px] font-black uppercase active:scale-95 transition-all">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cloud Config Dialog -->
+    <div id="cloud-dialog-overlay" class="fixed inset-0 z-[101] hidden items-center justify-center bg-black/80 backdrop-blur-sm p-6">
+        <div class="bg-[#111111] border border-white/10 w-full max-w-md rounded-[2rem] p-8 space-y-6 shadow-2xl scale-95 opacity-0 transition-all duration-300 transform" id="cloud-dialog-content">
+            <div class="space-y-2 text-center">
+                <h3 class="font-headline font-black text-primary uppercase tracking-widest text-sm">CONFIGURACIÓN NUBE</h3>
+                <p class="text-white/40 text-[10px] leading-relaxed uppercase font-medium">Vincula este proyecto con CONTROL vía Supabase</p>
+            </div>
+            
+            <div class="space-y-4">
+                <div class="space-y-1">
+                    <label class="text-[9px] uppercase font-black text-white/30 tracking-tighter ml-1">Supabase URL</label>
+                    <input id="cloud-input-url" type="text" class="w-full bg-white/5 border border-white/10 rounded-xl h-11 px-4 text-[10px] text-white placeholder:text-white/10 outline-none focus:border-primary/50 transition-all" placeholder="https://xxxx.supabase.co">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[9px] uppercase font-black text-white/30 tracking-tighter ml-1">Supabase API Key (Anon)</label>
+                    <input id="cloud-input-key" type="password" class="w-full bg-white/5 border border-white/10 rounded-xl h-11 px-4 text-[10px] text-white placeholder:text-white/10 outline-none focus:border-primary/50 transition-all" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[9px] uppercase font-black text-white/30 tracking-tighter ml-1">Control Project ID</label>
+                    <input id="cloud-input-project" type="text" class="w-full bg-white/5 border border-white/10 rounded-xl h-11 px-4 text-[10px] text-white placeholder:text-white/10 outline-none focus:border-primary/50 transition-all" placeholder="ID del proyecto en CONTROL">
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-2 pt-2">
+                <button id="cloud-btn-save" class="w-full h-12 rounded-xl bg-primary text-black text-[10px] font-black uppercase active:scale-95 transition-all">Vincular Proyecto</button>
+                <button id="cloud-btn-sync-all" class="w-full h-12 rounded-xl bg-white/5 border border-white/10 text-white text-[10px] font-bold uppercase active:scale-95 transition-all hidden">Sincronizar todo ahora</button>
+                <button id="cloud-btn-cancel" class="w-full h-8 text-white/40 text-[9px] font-bold uppercase tracking-widest hover:text-white transition-all">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        #splash-loader { position: fixed; inset: 0; background-color: #000; z-index: 10000; display: flex; align-items: center; justify-content: center; transition: opacity 0.8s ease-out; }
+    </style>
+    <div id="splash-loader">
+        <div class="w-12 h-12 border-4 border-white/5 border-t-primary rounded-full animate-spin"></div>
+    </div>
+    <script>
+        window.addEventListener('load', () => {
+            const l = document.getElementById('splash-loader');
+            if(l){ setTimeout(() => { l.style.opacity = '0'; setTimeout(() => l.remove(), 800); }, 500); }
+        });
+    </script>
+
+    <script src="/lib/xlsx.full.min.js?v=2026-04-03-1845"></script>
+    <script src="/lib/pdf-lib.min.js?v=2026-04-03-1845"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script type="module" src="/src/main.js?v=2026-04-04-1620"></script>
+</body>
+</html>

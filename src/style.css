@@ -1,0 +1,402 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 
+    Logi Kinetic | Stitch Design System (Acid Neon)
+    Restauración de Tokens de Diseño y Reglas de Cristalismo
+*/
+
+:root {
+    /* Stitch Palette - Dynamic Accent */
+    --primary: #cafd00;
+    --primary-glow: rgba(202, 253, 0, 0.4);
+    --primary-glow-c: rgba(202, 253, 0, 0.6);
+    --primary-bg: rgba(202, 253, 0, 0.08);
+    --primary-border: rgba(202, 253, 0, 0.2);
+    
+    --bg-main: #000000; /* Unified with Stitch mockup */
+    --surface-glass: rgba(10, 10, 11, 0.8);
+    --surface-card: #121214;
+    --on-surface-variant: #acaab1;
+    --text-primary: #f6f2fa;
+}
+
+.light-mode {
+    --bg-main: #f5f7fa;
+    --surface-glass: rgba(255, 255, 255, 0.7);
+    --surface-card: #ffffff;
+    --on-surface-variant: #64748b;
+    --text-primary: #0f172a;
+}
+
+/* Base */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior: none;
+    -webkit-user-select: none;
+    user-select: none;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Overrides para Modo Claro sin tocar HTML (Brute Force Mode) */
+.light-mode .bg-black, 
+.light-mode #global-header,
+.light-mode #bottom-nav,
+.light-mode #splash-loader {
+    background-color: var(--bg-main) !important;
+    border-color: rgba(0,0,0,0.05) !important;
+}
+
+.light-mode .text-white,
+.light-mode #header-project-name,
+.light-mode .material-symbols-outlined {
+    color: var(--text-primary) !important;
+}
+
+.light-mode .text-white\/60,
+.light-mode .text-white\/40,
+.light-mode .text-white\/20,
+.light-mode .text-on-surface-variant {
+    color: var(--on-surface-variant) !important;
+}
+
+.light-mode .bg-white\/5 {
+    background-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+.light-mode .border-white\/5,
+.light-mode .border-white\/10 {
+    border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* --- MODO CLARO: FUERZA NUCLEAR --- */
+.light-mode, .light-mode body {
+    background-color: #f5f7fa !important;
+    color: #000000 !important;
+}
+
+/* 1. Header Interno y Fecha (Visibilidad Crítica) */
+.light-mode #display-capture-date,
+.light-mode #gallery-date-range {
+    color: #000000 !important;
+    font-weight: 900 !important;
+    opacity: 1 !important;
+    -webkit-text-fill-color: #000000 !important;
+}
+
+.light-mode .text-white\/90, 
+.light-mode .text-white\/80, 
+.light-mode .text-white {
+    color: #000000 !important;
+}
+
+.light-mode .text-white\/60,
+.light-mode .text-white\/40,
+.light-mode .text-white\/30,
+.light-mode .text-white\/20,
+.light-mode .text-white\/10 {
+    color: #4b5563 !important;
+}
+
+/* 2. Contenedores Principales (Fuerza por ID) */
+.light-mode #action-card-container {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.light-mode #action-card-container > div,
+.light-mode #gallery-header > div:not(.group),
+.light-mode #gallery-selection-bar,
+.light-mode #gallery-edit-overlay, 
+.light-mode #item-selector-overlay > div,
+.light-mode .glass-panel,
+.light-mode .glass-card {
+    background: rgba(255, 255, 255, 0.95) !important;
+    background-color: rgba(255, 255, 255, 0.95) !important;
+    border: 1px solid rgba(0,0,0,0.1) !important;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.15) !important;
+    backdrop-filter: blur(25px) saturate(200%) !important;
+    -webkit-backdrop-filter: blur(25px) saturate(200%) !important;
+}
+
+/* Forzar transparencia total en el área de la galería y sus capas intermedias */
+.light-mode #gallery-content,
+.light-mode #gallery-content > div:not(.gallery-date-header) {
+    background: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+}
+
+/* Fotos Limpias */
+.light-mode .gallery-card-item {
+    border-color: rgba(0,0,0,0.05) !important;
+}
+
+/* Ajustes específicos para el Overlay de Edición y Selector */
+.light-mode #gallery-edit-overlay {
+    background-color: rgba(245, 247, 250, 0.85) !important;
+}
+
+.light-mode #item-selector-overlay {
+    background-color: rgba(0, 0, 0, 0.3) !important; /* Oscurecer un poco el fondo para que el modal blanco resalte */
+}
+
+.light-mode #edit-input-desc,
+.light-mode #edit-activity-label,
+.light-mode #gallery-edit-overlay span,
+.light-mode #item-selector-overlay h3,
+.light-mode #item-selector-overlay p {
+    color: #1e293b !important;
+}
+
+.light-mode #gallery-edit-overlay .bg-white\/5,
+.light-mode #gallery-edit-overlay .bg-black\/40,
+.light-mode #item-selector-overlay .bg-\[\#0f0f0f\],
+.light-mode #item-selector-overlay .bg-black\/20 {
+    background-color: #ffffff !important;
+    border: 1px solid rgba(0,0,0,0.08) !important;
+}
+
+/* Lista de ítems en el selector */
+.light-mode .item-option {
+    background-color: #ffffff !important;
+    border-color: rgba(0,0,0,0.05) !important;
+}
+
+.light-mode .item-option.bg-primary\/5 {
+    background-color: var(--primary-bg) !important;
+    border-color: var(--primary-border) !important;
+}
+
+.light-mode .item-option p {
+    color: #0f172a !important;
+}
+
+.light-mode #selector-search {
+    background-color: #f1f5f9 !important;
+    color: #000000 !important;
+    border: 1px solid rgba(0,0,0,0.1) !important;
+}
+
+.light-mode #edit-btn-share,
+.light-mode #edit-btn-item {
+    background-color: #f8fafc !important;
+    border: 1px solid rgba(0,0,0,0.08) !important;
+}
+
+/* El botón de cerrar se mantiene primary */
+.light-mode #edit-btn-close,
+.light-mode #btn-close-selector {
+    background-color: var(--primary) !important;
+    color: #000000 !important;
+}
+
+/* 3. Forzar fondos claros sobre clases HEX persistentes */
+.light-mode [class*="bg-[#0"],
+.light-mode [class*="bg-[#1"],
+.light-mode .bg-black,
+.light-mode .bg-black\/20 {
+    background-color: transparent !important; /* Limpiar el fondo gris de la galería */
+    background: transparent !important;
+}
+
+.light-mode .bg-\[\#0a0a0a\] {
+     background-color: #ffffff !important;
+}
+
+/* 4. Botones y Elementos de Interacción */
+.light-mode #btn-gallery,
+.light-mode #btn-global-share {
+    background-color: #ffffff !important;
+    border: 2px solid var(--primary) !important;
+    box-shadow: 0 4px 12px var(--primary-glow) !important;
+}
+
+.light-mode #btn-gallery span,
+.light-mode #btn-global-share span,
+.light-mode #gallery-selection-bar button span {
+    color: #000000 !important;
+    opacity: 1 !important;
+}
+
+/* 5. Inputs (Buscador Galería y Descripción Captura) */
+.light-mode #gallery-search,
+.light-mode #btn-activity-selector,
+.light-mode #input-desc,
+.light-mode [id*="desc-"] {
+    background-color: #ffffff !important;
+    border: 1.5px solid rgba(0,0,0,0.1) !important;
+    color: #000000 !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.02) !important;
+}
+
+.light-mode #gallery-search::placeholder {
+    color: #94a3b8 !important;
+    opacity: 1 !important;
+}
+
+.light-mode #current-activity,
+.light-mode #gallery-search {
+    color: #000000 !important;
+    font-weight: 700 !important;
+}
+
+/* 6. Arreglos de íconos globales */
+.light-mode .material-symbols-outlined {
+    color: #1e293b !important;
+}
+
+.light-mode .text-primary .material-symbols-outlined,
+.light-mode .material-symbols-outlined.text-primary,
+.light-mode #btn-capture .material-symbols-outlined,
+.light-mode #gallery-selection-bar .text-primary {
+    color: var(--primary) !important;
+}
+
+/* 7. Realce de Fotos en Galería (Adiós al efecto lavado) */
+.light-mode .gallery-card-item img {
+    filter: contrast(1.08) saturate(1.15) !important; /* Colores más vivos y profundos */
+    image-rendering: -webkit-optimize-contrast !important; /* Máxima nitidez en Android */
+}
+
+/* 8. Estilos Base para Sticky Headers de Galería */
+.gallery-date-header {
+    background: rgba(10, 10, 10, 0.6) !important;
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
+.light-mode .gallery-date-header {
+    background: rgba(255, 255, 255, 0.6) !important; /* Más transparente para que el Glass se note más */
+    backdrop-filter: blur(40px) saturate(250%) !important; /* Desenfoque extremo para look premium */
+    -webkit-backdrop-filter: blur(40px) saturate(250%) !important;
+    border-top: 1px solid rgba(255,255,255,0.4) !important;
+    border-bottom: 1px solid rgba(0,0,0,0.05) !important;
+    margin-top: 0 !important;
+    padding-left: 2rem;
+    padding-right: 2rem;
+    z-index: 50 !important;
+}
+
+.light-mode .gallery-date-header span {
+    color: #1e293b !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.4em !important;
+    opacity: 0.7 !important;
+}
+
+/* Eliminar líneas divisorias rígidas en modo claro para que sea más fluido */
+.light-mode .gallery-date-header .bg-white\/5 {
+    display: none !important;
+}
+
+.light-mode .gallery-date-header .flex {
+    justify-content: center;
+}
+
+/* Sombras neón en modo claro: menos intensas para evitar ruido */
+.light-mode .shadow-neon {
+    box-shadow: 0 0 10px 1px var(--primary-glow) !important;
+}
+
+/* Navigation Rail / Tab Halo */
+.light-mode #bottom-nav .active-halo {
+    background: var(--primary-bg) !important;
+    border: 1px solid var(--primary-border) !important;
+}
+
+/* Glassmorphism System */
+.glass-panel {
+    background: var(--surface-glass);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border-top: 1px solid var(--primary-border);
+    border-left: 1px solid var(--primary-border);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6);
+}
+
+/* Typography & Neon */
+.neon-glow-text {
+    text-shadow: 0 0 10px var(--primary-glow);
+}
+
+.shadow-neon {
+    box-shadow: 0 0 15px var(--primary-glow);
+}
+
+.font-headline {
+    font-family: 'Space Grotesk', sans-serif;
+}
+
+/* Utility: Safe Areas */
+.pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Transitions Custom */
+.active-nav {
+    color: var(--primary) !important;
+    background: var(--primary-bg) !important;
+    border-radius: 1.25rem !important;
+    box-shadow: 0 0 25px 2px var(--primary-glow) !important;
+}
+
+/* Scrollbar (Oculta para un look limpio de app nativa) */
+::-webkit-scrollbar {
+    width: 0px;
+    height: 0px;
+    background: transparent;
+}
+
+/* Animaciones */
+@keyframes neon-pulse {
+    0% { filter: drop-shadow(0 0 5px var(--primary-glow)); }
+    50% { filter: drop-shadow(0 0 12px var(--primary-glow-c)); }
+    100% { filter: drop-shadow(0 0 5px var(--primary-glow)); }
+}
+
+.pulse-neon {
+    animation: neon-pulse 3s infinite;
+}
+
+/* Custom Dialog View System */
+#custom-dialog-overlay.active,
+#cloud-dialog-overlay.active {
+    display: flex !important;
+}
+
+#custom-dialog-overlay.active #dialog-content,
+#cloud-dialog-overlay.active #cloud-dialog-content {
+    opacity: 1 !important;
+    transform: scale(1) !important;
+}
+/* Touch interaction stabilization */
+.capture-card-item, .gallery-card-item {
+    -webkit-touch-callout: none !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    touch-action: pan-y !important; /* Allow scroll, block context menu */
+}
+
+/* Visibility Fix for Selection Bar (v191.9-ULTRA) */
+#gallery-selection-bar.active {
+    transform: translate(-50%, 0) !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}

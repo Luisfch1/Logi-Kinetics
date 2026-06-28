@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        @media print {
+            .no-print { display: none; }
+            body { background: white !important; color: black !important; }
+            .print-container { width: 210mm; height: 297mm; padding: 20mm; margin: 0; box-shadow: none; border: none; }
+            .dark { background: white !important; }
+        }
+        body {
+            background-color: #131318;
+        }
+        .page-a4 {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 15mm;
+            margin: 2rem auto;
+            background: white;
+            color: #0e0e13;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            position: relative;
+        }
+        .photo-aspect {
+            aspect-ratio: 16 / 9;
+            overflow: hidden;
+            background-color: #f3f3f3;
+        }
+    </style>
+</head>
+<body class="font-body">
+<main class="flex flex-col items-center">
+<div class="page-a4" id="report-canvas">
+<!-- Header Section -->
+<div class="flex justify-between items-end border-b-2 border-gray-900 pb-6 mb-8">
+<div class="flex flex-col">
+<div class="text-4xl font-bold tracking-tighter text-black font-headline mb-1">LOGI</div>
+<div class="text-[10px] tracking-[0.3em] font-bold text-gray-400 uppercase font-body">SISTEMAS DE CONTROL TÉCNICO</div>
+</div>
+<div class="text-right">
+<h2 class="text-2xl font-bold font-headline text-black leading-tight uppercase tracking-tight">PROYECTO: ASEREJE</h2>
+<div class="flex flex-col gap-0 text-sm text-gray-600 font-body">
+<span class="font-bold">INFORME TÉCNICO DIARIO</span>
+<span>FECHA DE EMISIÓN: 24 DE MAYO, 2024</span>
+<span>CÓDIGO: RPT-AS-094-2024</span>
+</div>
+</div>
+</div>
+<!-- Photos Grid (2 columns x 3 rows - 6 photos) -->
+<div class="grid grid-cols-2 gap-x-8 gap-y-10">
+<!-- Photo Item 1 -->
+<div class="flex flex-col">
+<div class="photo-aspect mb-3">
+<img class="w-full h-full object-cover" src="https://images.unsplash.com/photo-1541888946425-d81bb19240f5?q=80&w=500&auto=format&fit=crop"/>
+</div>
+<div class="border-l-4 border-gray-900 pl-3">
+<h3 class="font-headline font-bold text-sm text-black uppercase tracking-tight">FOTO 1: CIMENTACIÓN FASE 2</h3>
+<p class="font-body text-[11px] text-gray-700 leading-relaxed mt-1">
+                            Verificación de armado de acero estructural en zapata corrida eje A-12. Se confirma recubrimiento mínimo de 7.5cm según especificación técnica E-060.
+                        </p>
+</div>
+</div>
+<!-- Photo Item 2 -->
+<div class="flex flex-col">
+<div class="photo-aspect mb-3">
+<img class="w-full h-full object-cover" src="https://images.unsplash.com/photo-1590486803833-2c72467d9814?q=80&w=500&auto=format&fit=crop"/>
+</div>
+<div class="border-l-4 border-gray-900 pl-3">
+<h3 class="font-headline font-bold text-sm text-black uppercase tracking-tight">FOTO 2: EXCAVACIÓN MECÁNICA</h3>
+<p class="font-body text-[11px] text-gray-700 leading-relaxed mt-1">
+                            Retiro de material excedente en zona de sótanos. Nivel de excavación alcanzado: -4.50m. Suelo clasificado como arcilla limosa compacta.
+                        </p>
+</div>
+</div>
+<!-- Photo Item 3 -->
+<div class="flex flex-col">
+<div class="photo-aspect mb-3">
+<img class="w-full h-full object-cover" src="https://images.unsplash.com/photo-1504307651254-35680f356dfd?q=80&w=500&auto=format&fit=crop"/>
+</div>
+<div class="border-l-4 border-gray-900 pl-3">
+<h3 class="font-headline font-bold text-sm text-black uppercase tracking-tight">FOTO 3: REVISIÓN DE PLANOS</h3>
+<p class="font-body text-[11px] text-gray-700 leading-relaxed mt-1">
+                            Sesión técnica para ajuste de instalaciones hidrosanitarias en sector norte. Coordinación entre ingeniería eléctrica y sanitaria.
+                        </p>
+</div>
+</div>
+<!-- Photo Item 4 -->
+<div class="flex flex-col">
+<div class="photo-aspect mb-3">
+<img class="w-full h-full object-cover" src="https://images.unsplash.com/photo-1581094794329-c8112a89af12?q=80&w=500&auto=format&fit=crop"/>
+</div>
+<div class="border-l-4 border-gray-900 pl-3">
+<h3 class="font-headline font-bold text-sm text-black uppercase tracking-tight">FOTO 4: ALBAÑILERÍA ESTRUCTURAL</h3>
+<p class="font-body text-[11px] text-gray-700 leading-relaxed mt-1">
+                            Levantamiento de muros portantes en nivel 1. Uso de ladrillo King Kong de 18 huecos con mortero tipo P2. Juntas de 1.5cm controladas.
+                        </p>
+</div>
+</div>
+<!-- Photo Item 5 -->
+<div class="flex flex-col">
+<div class="photo-aspect mb-3">
+<img class="w-full h-full object-cover" src="https://images.unsplash.com/photo-1533230898524-750970b24dc3?q=80&w=500&auto=format&fit=crop"/>
+</div>
+<div class="border-l-4 border-gray-900 pl-3">
+<h3 class="font-headline font-bold text-sm text-black uppercase tracking-tight">FOTO 5: MONTAJE DE GRÚA TORRE</h3>
+<p class="font-body text-[11px] text-gray-700 leading-relaxed mt-1">
+                            Finalización de anclaje de base para grúa torre GT-01. Torque verificado en pernos de alta resistencia. Pruebas de carga programadas.
+                        </p>
+</div>
+</div>
+<!-- Photo Item 6 -->
+<div class="flex flex-col">
+<div class="photo-aspect mb-3">
+<img class="w-full h-full object-cover" src="https://images.unsplash.com/photo-1590486803833-2c72467d9814?q=80&w=500&auto=format&fit=crop"/>
+</div>
+<div class="border-l-4 border-gray-900 pl-3">
+<h3 class="font-headline font-bold text-sm text-black uppercase tracking-tight">FOTO 6: INSTALACIONES ELÉCTRICAS</h3>
+<p class="font-body text-[11px] text-gray-700 leading-relaxed mt-1">
+                            Canalización de alimentadores principales para tablero general. Tubería EMT de 2" con soportería unicanal cada 1.50m.
+                        </p>
+</div>
+</div>
+</div>
+<!-- Page Footer (A4 Document) -->
+<div class="absolute bottom-10 left-15 right-15 flex justify-between items-center text-[9px] text-gray-400 border-t border-gray-100 pt-4 w-[calc(100%-30mm)]">
+<div>LOGI MODERNIZATION 2024 - PRECISIÓN TÉCNICA</div>
+<div class="font-bold">PÁGINA 01 DE 01</div>
+<div>AUTORIZADO POR: ING. DE PROYECTO</div>
+</div>
+</div>
+</main>
+</body></html>
