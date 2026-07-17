@@ -880,6 +880,7 @@ export const ExportModule = {
 
     async _generateDocx(project, filtered, fileName, customResizeWidth) {
         try {
+            let drawingId = 0;
              // Ordenar
              filtered.sort((a, b) => {
                 const actA = (a.actividad || '').toUpperCase();
@@ -916,6 +917,7 @@ export const ExportModule = {
                         new ImageRun({
                             data: logoBytes,
                             transformation: { width: 45, height: 45 },
+                            docProperties: { id: ++drawingId, name: `Logo ${drawingId}` }
                         }),
                     ],
                     alignment: AlignmentType.RIGHT,
@@ -982,6 +984,7 @@ export const ExportModule = {
                                     new ImageRun({
                                         data: imgBytes,
                                         transformation: { width: 280, height: 170 },
+                                        docProperties: { id: ++drawingId, name: `Picture ${drawingId}` }
                                     }),
                                 ],
                                 alignment: AlignmentType.CENTER,
@@ -1061,6 +1064,7 @@ export const ExportModule = {
 
     async _generateTechnicalDocx(project, filtered, fileName, customResizeWidth) {
         try {
+            let drawingId = 0;
             // Ordenar
             filtered.sort((a, b) => {
                 const actA = (a.actividad || '').toUpperCase();
@@ -1085,7 +1089,11 @@ export const ExportModule = {
             let logoCellChildren = [];
             if (logoBytes) {
                 logoCellChildren.push(new Paragraph({
-                    children: [new ImageRun({ data: logoBytes, transformation: { width: 50, height: 50 } })],
+                    children: [new ImageRun({ 
+                        data: logoBytes, 
+                        transformation: { width: 50, height: 50 },
+                        docProperties: { id: ++drawingId, name: `Logo ${drawingId}` }
+                    })],
                     alignment: AlignmentType.CENTER,
                 }));
             }
@@ -1159,10 +1167,14 @@ export const ExportModule = {
                         if (imgBytes) {
                             // v191.9-TITAN-X: Redimensionar antes de meter al Word para evitar cierres
                             const resizeW = customResizeWidth || 1024;
-                            imgBytes = await this._resizeImage(imgBytes, resizeW);
+                            imgBytes = await this._processImage(imgBytes, resizeW, this.config.whatsappIncludeLogo, this.config.whatsappIncludeTimestamp, snap, false, (i + j + 1));
                             
                             cellChildren.push(new Paragraph({
-                                children: [new ImageRun({ data: imgBytes, transformation: { width: 300, height: 180 } })],
+                                children: [new ImageRun({ 
+                                    data: imgBytes, 
+                                    transformation: { width: 300, height: 180 },
+                                    docProperties: { id: ++drawingId, name: `Picture ${drawingId}` }
+                                })],
                                 alignment: AlignmentType.CENTER,
                                 spacing: { before: 400, after: 200 }
                             }));
