@@ -106,6 +106,51 @@ export const LogiNative = {
                 console.error("Init FS Error:", e);
             }
         } else {
+            // Diagnóstico de espacio de LocalStorage (v192.5)
+            console.log("=== LOCALSTORAGE DIAGNOSTICS ===");
+            try {
+                let total = 0;
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    const val = localStorage.getItem(key);
+                    const size = (val ? val.length : 0) * 2; // aprox 2 bytes per char
+                    total += size;
+                    console.log(`Key: ${key} | Size: ${(size / 1024).toFixed(2)} KB`);
+                }
+                console.log(`Total LocalStorage Size: ${(total / 1024 / 1024).toFixed(2)} MB`);
+            } catch (diagErr) {
+                console.error("Diag Error:", diagErr);
+            }
+
+            // Sanitización preventiva de metadatos web (evitar QuotaExceededError en PC)
+            try {
+                let changed = false;
+                if (_webMeta.items_meta && Array.isArray(_webMeta.items_meta)) {
+                    _webMeta.items_meta.forEach(item => {
+                        if (item._tempImageSrc) {
+                            delete item._tempImageSrc;
+                            changed = true;
+                        }
+                        if (item.base64) {
+                            delete item.base64;
+                            changed = true;
+                        }
+                        for (const k in item) {
+                            if (typeof item[k] === 'string' && item[k].length > 1000) {
+                                console.warn(`[Bridge] Sanitizando campo excedente "${k}" en item:`, item.id);
+                                delete item[k];
+                                changed = true;
+                            }
+                        }
+                    });
+                }
+                if (changed) {
+                    saveWebMeta('items_meta');
+                    console.log("[Bridge] LocalStorage sanado preventivamente.");
+                }
+            } catch (err) {
+                console.error("[Bridge] Error sanando LocalStorage:", err);
+            }
             await getDB();
         }
     },
@@ -348,8 +393,14 @@ export const LogiNative = {
     saveLogo: async (base64) => {
         console.log("LogiNative: Intentando guardar logo... tamaño:", base64 ? base64.length : 0);
         if (!LogiNative.isNative()) {
-            localStorage.setItem('logi_export_logo_raw', base64);
-            return true;
+            const db = await getDB();
+            if (!db) return false;
+            return new Promise(r => {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                tx.objectStore(STORE_NAME).put(base64, 'export_logo');
+                tx.oncomplete = () => r(true);
+                tx.onerror = () => r(false);
+            });
         }
         try {
             await Preferences.set({ key: 'logi_logo_bin', value: base64 });
@@ -362,8 +413,17 @@ export const LogiNative = {
     },
 
     getLogo: async () => {
-        console.log("LogiNative: Solicitando logo de Preferences...");
-        if (!LogiNative.isNative()) return localStorage.getItem('logi_export_logo_raw');
+        console.log("LogiNative: Solicitando logo...");
+        if (!LogiNative.isNative()) {
+            const db = await getDB();
+            if (!db) return null;
+            return new Promise(r => {
+                const tx = db.transaction(STORE_NAME, 'readonly');
+                const req = tx.objectStore(STORE_NAME).get('export_logo');
+                req.onsuccess = () => r(req.result);
+                req.onerror = () => r(null);
+            });
+        }
         try {
             const { value } = await Preferences.get({ key: 'logi_logo_bin' });
             console.log("LogiNative: Logo recuperado. Tamaño:", value ? value.length : "NULL");
@@ -376,8 +436,14 @@ export const LogiNative = {
 
     deleteLogo: async () => {
         if (!LogiNative.isNative()) {
-            localStorage.removeItem('logi_export_logo_raw');
-            return true;
+            const db = await getDB();
+            if (!db) return false;
+            return new Promise(r => {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                tx.objectStore(STORE_NAME).delete('export_logo');
+                tx.oncomplete = () => r(true);
+                tx.onerror = () => r(false);
+            });
         }
         try {
             await Preferences.remove({ key: 'logi_logo_bin' });
@@ -715,7 +781,33 @@ export const LogiNative = {
     _getReportsPath: (pid) => `_LOGI_VAULT_/Reports/_proj_${pid || 'p_default'}`,
 
     shareBlob: async (blob, filename, projectId) => {
+        const pid = projectId || State.currentProject?.id || 'p_default';
         if (!LogiNative.isNative()) {
+            // 1. Guardar metadatos del reporte en LocalStorage
+            const list = JSON.parse(localStorage.getItem('logi_reports_web') || '[]');
+            const newList = list.filter(f => f.name !== filename || f.projectId !== pid);
+            newList.push({
+                name: filename,
+                mtime: Date.now(),
+                size: blob.size,
+                projectId: pid
+            });
+            localStorage.setItem('logi_reports_web', JSON.stringify(newList));
+
+            // 2. Guardar contenido del PDF en IndexedDB
+            const reader = new FileReader();
+            const base64DataURL = await new Promise((resolve) => {
+                reader.onloadend = () => resolve(reader.result);
+                reader.readAsDataURL(blob);
+            });
+
+            const db = await getDB();
+            if (db) {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                tx.objectStore(STORE_NAME).put(base64DataURL, `report_${pid}_${filename}`);
+            }
+
+            // 3. Descargar en PC
             const url = URL.createObjectURL(blob);
             const a = document.getElementById("hidden-download-link") || document.createElement("a");
             a.href = url;
@@ -822,8 +914,14 @@ export const LogiNative = {
         const normPid = (typeof State._norm === 'function') ? State._norm(pid) : pid;
         if (!LogiNative.isNative()) {
             const list = JSON.parse(localStorage.getItem('logi_reports_web') || '[]');
-            const newList = list.filter(f => f.name !== filename || f.projectId === pid);
+            const newList = list.filter(f => f.name !== filename || f.projectId !== pid);
             localStorage.setItem('logi_reports_web', JSON.stringify(newList));
+
+            const db = await getDB();
+            if (db) {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                tx.objectStore(STORE_NAME).delete(`report_${pid}_${filename}`);
+            }
             return true;
         }
         try {
@@ -837,7 +935,16 @@ export const LogiNative = {
     getReportUri: async (filename) => {
         const pid = State.currentProject?.id || 'p_default';
         const normPid = (typeof State._norm === 'function') ? State._norm(pid) : pid;
-        if (!LogiNative.isNative()) return null;
+        if (!LogiNative.isNative()) {
+            const db = await getDB();
+            if (!db) return null;
+            return new Promise(r => {
+                const tx = db.transaction(STORE_NAME, 'readonly');
+                const req = tx.objectStore(STORE_NAME).get(`report_${pid}_${filename}`);
+                req.onsuccess = () => r(req.result || null);
+                req.onerror = () => r(null);
+            });
+        }
         try {
             const dirPath = LogiNative._getReportsPath(normPid);
             const path = `${dirPath}/${filename}`;
@@ -849,7 +956,16 @@ export const LogiNative = {
     shareReport: async (filename) => {
         const pid = State.currentProject?.id || 'p_default';
         const normPid = (typeof State._norm === 'function') ? State._norm(pid) : pid;
-        if (!LogiNative.isNative()) return;
+        if (!LogiNative.isNative()) {
+            const uri = await LogiNative.getReportUri(filename);
+            if (uri) {
+                const a = document.createElement('a');
+                a.href = uri;
+                a.download = filename;
+                a.click();
+            }
+            return;
+        }
         try {
             const dirPath = LogiNative._getReportsPath(normPid);
             const path = `${dirPath}/${filename}`;
@@ -889,6 +1005,21 @@ export const LogiNative = {
             const item = list.find(f => f.name === oldName && f.projectId === pid);
             if (item) item.name = newName;
             localStorage.setItem('logi_reports_web', JSON.stringify(list));
+
+            const db = await getDB();
+            if (db) {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                const store = tx.objectStore(STORE_NAME);
+                const req = store.get(`report_${pid}_${oldName}`);
+                req.onsuccess = () => {
+                    if (req.result) {
+                        const tx2 = db.transaction(STORE_NAME, 'readwrite');
+                        const store2 = tx2.objectStore(STORE_NAME);
+                        store2.put(req.result, `report_${pid}_${newName}`);
+                        store2.delete(`report_${pid}_${oldName}`);
+                    }
+                };
+            }
             return true;
         }
         try {

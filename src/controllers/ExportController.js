@@ -791,6 +791,10 @@ export const ExportModule = {
         });
     },
 
+    async _resizeImage(uint8Array, maxWidth) {
+        return this._processImage(uint8Array, maxWidth, false, false);
+    },
+
     /**
      * Prepara una imagen para compartir en redes (WhatsApp) con marca de agua (v191.9-PREMIUM)
      */
@@ -882,27 +886,33 @@ export const ExportModule = {
             }
 
             // --- HEADER (Usando Tabla para máxima estabilidad) ---
-            let headerLogoContent = [];
+            let logoBytes = null;
             if (this.config.logo) {
-                const logoBytes = await LogiNative.getBlobBytes(this.config.logo);
-                if (logoBytes) {
-                    headerLogoContent.push(new Paragraph({
-                        children: [
-                            new ImageRun({
-                                data: logoBytes,
-                                transformation: { width: 45, height: 45 },
-                            }),
-                        ],
-                        alignment: AlignmentType.RIGHT,
-                    }));
+                if (this.config.logo.startsWith('data:')) {
+                    const base64 = this.config.logo.split(',')[1];
+                    logoBytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+                } else {
+                    logoBytes = await LogiNative.getBlobBytes(this.config.logo);
                 }
+            }
+            let headerLogoContent = [];
+            if (logoBytes) {
+                headerLogoContent.push(new Paragraph({
+                    children: [
+                        new ImageRun({
+                            data: logoBytes,
+                            transformation: { width: 45, height: 45 },
+                        }),
+                    ],
+                    alignment: AlignmentType.RIGHT,
+                }));
             }
 
             const headerTable = new Table({
-                width: { size: 100, type: WidthType.PERCENTAGE },
+                width: { size: 10500, type: WidthType.DXA },
                 borders: {
                     top: { style: BorderStyle.NONE },
-                    bottom: { style: BorderStyle.SINGLE, size: 1, color: "E0E0E0" },
+                    bottom: { style: BorderStyle.SINGLE, size: 8, color: "E0E0E0" },
                     left: { style: BorderStyle.NONE },
                     right: { style: BorderStyle.NONE },
                 },
@@ -924,12 +934,12 @@ export const ExportModule = {
                                         spacing: { after: 100 },
                                     }),
                                 ],
-                                width: { size: 70, type: WidthType.PERCENTAGE },
+                                width: { size: 7350, type: WidthType.DXA },
                                 borders: { bottom: { style: BorderStyle.NONE } }
                             }),
                             new TableCell({
                                 children: headerLogoContent.length > 0 ? headerLogoContent : [new Paragraph({ text: "" })],
-                                width: { size: 30, type: WidthType.PERCENTAGE },
+                                width: { size: 3150, type: WidthType.DXA },
                                 borders: { bottom: { style: BorderStyle.NONE } }
                             }),
                         ],
@@ -1001,7 +1011,7 @@ export const ExportModule = {
 
             const mainTable = new Table({
                 rows: docRows,
-                width: { size: 100, type: WidthType.PERCENTAGE },
+                width: { size: 10500, type: WidthType.DXA },
             });
 
             const doc = new Document({
@@ -1016,8 +1026,8 @@ export const ExportModule = {
                     },
                 },
                 sections: [{
-                    headers: { default: new Header({ children: [headerTable] }) },
-                    children: [mainTable],
+                    headers: { default: new Header({ children: [headerTable, new Paragraph("")] }) },
+                    children: [mainTable, new Paragraph("")],
                 }],
             });
 
@@ -1047,23 +1057,28 @@ export const ExportModule = {
             const emissionDate = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase();
 
             // --- HEADER V2 (Tabla de alta fidelidad) ---
-            let logoCellChildren = [];
+            let logoBytes = null;
             if (this.config.logo) {
-                const logoBytes = await LogiNative.getBlobBytes(this.config.logo);
-                if (logoBytes) {
-                    logoCellChildren.push(new Paragraph({
-                        children: [new ImageRun({ data: logoBytes, transformation: { width: 50, height: 50 } })],
-                        alignment: AlignmentType.CENTER,
-                    }));
+                if (this.config.logo.startsWith('data:')) {
+                    const base64 = this.config.logo.split(',')[1];
+                    logoBytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+                } else {
+                    logoBytes = await LogiNative.getBlobBytes(this.config.logo);
                 }
+            }
+            let logoCellChildren = [];
+            if (logoBytes) {
+                logoCellChildren.push(new Paragraph({
+                    children: [new ImageRun({ data: logoBytes, transformation: { width: 50, height: 50 } })],
+                    alignment: AlignmentType.CENTER,
+                }));
             }
 
             const headerTable = new Table({
-                width: { size: 100, type: WidthType.PERCENTAGE },
+                width: { size: 10500, type: WidthType.DXA },
                 borders: {
-                    top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.SINGLE, size: 2, color: "000000" },
-                    left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE },
-                    insideHorizontal: { style: BorderStyle.NONE }, insideVertical: { style: BorderStyle.NONE }
+                    top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.SINGLE, size: 8, color: "000000" },
+                    left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }
                 },
                 rows: [
                     new TableRow({
@@ -1079,11 +1094,11 @@ export const ExportModule = {
                                         spacing: { after: 200 }
                                     })
                                 ],
-                                width: { size: 40, type: WidthType.PERCENTAGE }
+                                width: { size: 4200, type: WidthType.DXA }
                             }),
                             new TableCell({
                                 children: logoCellChildren.length > 0 ? logoCellChildren : [new Paragraph("")],
-                                width: { size: 20, type: WidthType.PERCENTAGE },
+                                width: { size: 2100, type: WidthType.DXA },
                                 verticalAlign: VerticalAlign.CENTER
                             }),
                             new TableCell({
@@ -1102,7 +1117,7 @@ export const ExportModule = {
                                         spacing: { after: 200 }
                                     })
                                 ],
-                                width: { size: 40, type: WidthType.PERCENTAGE }
+                                width: { size: 4200, type: WidthType.DXA }
                             })
                         ]
                     })
@@ -1142,36 +1157,23 @@ export const ExportModule = {
                         const descriptionTxt = (snap.descripcion || 'SIN DESCRIPCIÓN').toUpperCase();
                         const itemName = this._getItemName(activityTxt);
 
-                        cellChildren.push(new Table({
-                            width: { size: 100, type: WidthType.PERCENTAGE },
-                            borders: {
-                                left: { style: BorderStyle.SINGLE, size: 24, color: "000000" },
-                                top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE },
-                                insideHorizontal: { style: BorderStyle.NONE }, insideVertical: { style: BorderStyle.NONE }
-                            },
-                            rows: [
-                                new TableRow({
-                                    children: [
-                                        new TableCell({
-                                            children: [
-                                                new Paragraph({
-                                                    children: [new TextRun({ 
-                                                        text: itemName ? `FOTO ${i + j + 1}: ${activityTxt} - ${itemName}` : `FOTO ${i + j + 1}: ${activityTxt}`, 
-                                                        bold: true, size: 20 
-                                                    })],
-                                                    indent: { left: 240 }
-                                                }),
-                                                new Paragraph({
-                                                    children: [new TextRun({ text: descriptionTxt, size: 16, color: "666666" })],
-                                                    indent: { left: 240 },
-                                                    spacing: { after: 400 }
-                                                })
-                                            ],
-                                            borders: { left: { style: BorderStyle.NONE } } // Ya lo tiene la tabla
-                                        })
-                                    ]
-                                })
-                            ]
+                        cellChildren.push(new Paragraph({
+                            children: [new TextRun({ 
+                                text: itemName ? `FOTO ${i + j + 1}: ${activityTxt} - ${itemName}` : `FOTO ${i + j + 1}: ${activityTxt}`, 
+                                bold: true, size: 20 
+                            })],
+                            indent: { left: 240 },
+                            border: {
+                                left: { style: BorderStyle.SINGLE, size: 24, space: 10, color: "000000" }
+                            }
+                        }));
+                        cellChildren.push(new Paragraph({
+                            children: [new TextRun({ text: descriptionTxt, size: 16, color: "666666" })],
+                            indent: { left: 240 },
+                            spacing: { after: 400 },
+                            border: {
+                                left: { style: BorderStyle.SINGLE, size: 24, space: 10, color: "000000" }
+                            }
                         }));
                     } else {
                         cellChildren.push(new Paragraph(""));
@@ -1179,7 +1181,7 @@ export const ExportModule = {
 
                     cells.push(new TableCell({
                         children: cellChildren,
-                        width: { size: 50, type: WidthType.PERCENTAGE },
+                        width: { size: 5250, type: WidthType.DXA },
                         borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } }
                     }));
                 }
@@ -1188,8 +1190,8 @@ export const ExportModule = {
 
             const mainTable = new Table({
                 rows: docRows,
-                width: { size: 100, type: WidthType.PERCENTAGE },
-                borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }, insideHorizontal: { style: BorderStyle.NONE }, insideVertical: { style: BorderStyle.NONE } }
+                width: { size: 10500, type: WidthType.DXA },
+                borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } }
             });
 
             const doc = new Document({
@@ -1202,8 +1204,8 @@ export const ExportModule = {
                 },
                 sections: [{
                     properties: { page: { size: { width: 11906, height: 16838 } } }, // A4
-                    headers: { default: new Header({ children: [headerTable] }) },
-                    children: [mainTable],
+                    headers: { default: new Header({ children: [headerTable, new Paragraph("")] }) },
+                    children: [mainTable, new Paragraph("")],
                 }],
             });
 

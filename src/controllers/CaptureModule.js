@@ -237,18 +237,25 @@ export const CaptureCtrl = {
                 resultType: CameraResultType.Base64,
                 source: CameraSource.Camera
             });
+            console.log("[CaptureCtrl] Camera.getPhoto completed. Base64 length:", photo.base64String?.length);
             await this.processImage(photo.base64String);
-        } catch (e) {}
+        } catch (e) {
+            console.error("[CaptureCtrl] capture() Error:", e);
+        }
     },
 
     async pickFromGallery() {
         try {
             const res = await Camera.pickImages({ quality: 60, limit: 20 });
+            console.log("[CaptureCtrl] Camera.pickImages completed. Count:", res.photos?.length);
             for (const p of res.photos) {
+                console.log("[CaptureCtrl] Reading photo:", p.webPath);
                 const base64 = await this.readAsBase64(p.webPath);
                 await this.processImage(base64);
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error("[CaptureCtrl] pickFromGallery() Error:", e);
+        }
     },
 
     async readAsBase64(path) {

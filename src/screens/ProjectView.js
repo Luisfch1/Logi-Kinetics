@@ -55,7 +55,7 @@ export const ProjectView = {
         const btnClose = document.getElementById('btn-close-projects');
         if(btnClose) {
             btnClose.onclick = () => {
-                import('../core/Architect.js').then(m => m.Architect.render('capture'));
+                State.setTab('capture');
             };
         }
 

@@ -18,6 +18,11 @@ import { CaptureCtrl } from './controllers/CaptureModule.js';
 import { ExportModule } from './controllers/ExportController.js';
 import { BackupModule } from './core/BackupModule.js';
 import { LogiNative } from './core/capacitor-bridge.js';
+import { defineCustomElements } from '@ionic/pwa-elements/loader';
+
+// Inicializar elementos PWA para soporte de cámara/galería en Web
+defineCustomElements(window);
+
 
 // Exponer módulos para acceso global (v191.9-PREMIUM)
 window.ProjectModule = ProjectModule;
@@ -65,7 +70,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 function setupHeaderSettings() {
     const btn = document.getElementById('btn-app-settings');
     if (btn) {
-        btn.onclick = () => Architect.render('settings');
+        btn.onclick = () => State.setTab('settings');
     }
 }
 

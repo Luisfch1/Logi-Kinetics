@@ -79,9 +79,7 @@ export const ItemsView = {
         console.log('>>> VISUALIZACIÓN DE ÍTEMS ACTIVADA <<<');
         const btnBack = document.getElementById('btn-back-settings');
         if (btnBack) {
-            btnBack.onclick = () => Architect.render('export'); // El user asume que configuración está en export o tiene un back global. 
-            // En Kinetic, Settings suele activarse desde un botón global o el Nav. 
-            // Architect.render('export') es el fallback común si Settings se abrió desde ahí.
+            btnBack.onclick = () => State.setTab('settings');
         }
     }
 };

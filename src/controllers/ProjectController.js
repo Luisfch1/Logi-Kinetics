@@ -44,15 +44,7 @@ export class ProjectController {
     }
 
     async openManager() {
-        const { Architect } = await import('../core/Architect.js');
-        await Architect.render('projects');
-    }
-
-    async selectProject(id) {
-        await State.setProject(id);
-        const { Architect } = await import('../core/Architect.js');
-        // V189.6: Respetar el tab actual en lugar de forzar 'capture'
-        Architect.render(State.currentTab || 'capture');
+        State.setTab('projects');
     }
 
     renderList() {
@@ -93,8 +85,7 @@ export class ProjectController {
 
     async selectProject(id) {
         await State.setProject(id);
-        const { Architect } = await import('../core/Architect.js');
-        await Architect.render('capture');
+        State.setTab('capture');
     }
 
     // === DIÁLOGOS PERSONALIZADOS ===

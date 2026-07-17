@@ -16,13 +16,14 @@
     "vite": "^8.0.1"
   },
   "dependencies": {
-    "@capacitor/android": "^8.2.0",
     "@capacitor-community/speech-recognition": "^7.0.1",
+    "@capacitor/android": "^8.2.0",
     "@capacitor/camera": "^8.0.2",
     "@capacitor/core": "^8.2.0",
     "@capacitor/filesystem": "^8.1.2",
     "@capacitor/preferences": "^8.0.1",
     "@capacitor/share": "^8.0.1",
+    "@ionic/pwa-elements": "^3.4.0",
     "@supabase/supabase-js": "^2.105.1",
     "docx": "^9.6.1"
   }
