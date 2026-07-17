@@ -795,15 +795,25 @@ export const ExportModule = {
                 // 3. Etiqueta de Índice de Foto (Como en el PDF)
                 if (photoIndex !== null) {
                     const badgeSize = Math.max(40, Math.floor(width * 0.08));
+                    
+                    // Compensación geométrica: el visor de Word estira horizontalmente las fotos
+                    // de aspecto 4:3 a ~1.65. Compensamos pre-deformando el recuadro para que quede cuadrado al renderizar.
+                    const targetAspect = 1.65;
+                    const canvasAspect = width / height;
+                    const compensation = canvasAspect / targetAspect;
+                    
+                    const badgeW = badgeSize * compensation;
+                    const badgeH = badgeSize;
+                    
                     ctx.fillStyle = '#cafd00'; // Color primario Logi
-                    ctx.fillRect(0, 0, badgeSize, badgeSize);
+                    ctx.fillRect(0, 0, badgeW, badgeH);
                     
                     ctx.fillStyle = '#000000';
                     const badgeFontSize = Math.floor(badgeSize * 0.6);
                     ctx.font = `bold ${badgeFontSize}px sans-serif`;
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-                    ctx.fillText(photoIndex.toString(), badgeSize / 2, badgeSize / 2 + (badgeFontSize * 0.05));
+                    ctx.fillText(photoIndex.toString(), badgeW / 2, badgeH / 2 + (badgeFontSize * 0.05));
                 }
 
                 canvas.toBlob((resultBlob) => {
@@ -939,7 +949,7 @@ export const ExportModule = {
             const headerTable = new Table({
                 width: { size: 10500, type: WidthType.DXA },
                 borders: {
-                    top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                    top: { style: BorderStyle.SINGLE, size: 36, color: "cafd00" }, // Barra verde superior
                     bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                     left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                     right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
@@ -947,23 +957,7 @@ export const ExportModule = {
                     insideVertical: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                 },
                 rows: [
-                    // Fila 1: Barra verde superior (como drawRectangle en PDF)
-                    new TableRow({
-                        children: [
-                            new TableCell({
-                                width: { size: 10500, type: WidthType.DXA },
-                                shading: { fill: "cafd00" },
-                                borders: {
-                                    top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
-                                    bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
-                                    left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
-                                    right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
-                                },
-                                children: [new Paragraph({ spacing: { before: 80, after: 80 } })], // Barra verde fina
-                            })
-                        ]
-                    }),
-                    // Fila 2: Título y Logo
+                    // Fila única: Título y Logo
                     new TableRow({
                         children: [
                             new TableCell({
@@ -973,7 +967,7 @@ export const ExportModule = {
                                             new TextRun({ text: "LOGI", bold: true, color: "cafd00", size: 32 }), 
                                             new TextRun({ text: `   ${(project.name || "").toUpperCase()}`, bold: true, color: "000000", size: 20 }),
                                         ],
-                                        spacing: { before: 100 }
+                                        spacing: { before: 200 }
                                     }),
                                     new Paragraph({
                                         children: [
@@ -1030,7 +1024,7 @@ export const ExportModule = {
                                         docProperties: { id: ++drawingId, name: `Picture ${drawingId}` }
                                     }),
                                 ],
-                                alignment: AlignmentType.CENTER,
+                                alignment: AlignmentType.LEFT,
                                 spacing: { before: 200, after: 100 },
                             }));
                         }
@@ -1153,7 +1147,7 @@ export const ExportModule = {
             const headerTable = new Table({
                 width: { size: 10500, type: WidthType.DXA },
                 borders: {
-                    top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }, 
+                    top: { style: BorderStyle.SINGLE, size: 36, color: "000000" }, // Barra negra superior
                     bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                     left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }, 
                     right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
@@ -1161,23 +1155,7 @@ export const ExportModule = {
                     insideVertical: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }
                 },
                 rows: [
-                    // Fila 1: Barra negra superior (en el reporte técnico es negro, como drawRectangle en PDF)
-                    new TableRow({
-                        children: [
-                            new TableCell({
-                                width: { size: 10500, type: WidthType.DXA },
-                                shading: { fill: "000000" },
-                                borders: {
-                                    top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
-                                    bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
-                                    left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
-                                    right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
-                                },
-                                children: [new Paragraph({ spacing: { before: 80, after: 80 } })], // Barra negra fina
-                            })
-                        ]
-                    }),
-                    // Fila 2: Título y Logo
+                    // Fila 1: Título y Logo
                     new TableRow({
                         children: [
                             new TableCell({
@@ -1260,7 +1238,7 @@ export const ExportModule = {
                                     transformation: { width: 300, height: 180 },
                                     docProperties: { id: ++drawingId, name: `Picture ${drawingId}` }
                                 })],
-                                alignment: AlignmentType.CENTER,
+                                alignment: AlignmentType.LEFT,
                                 spacing: { before: 400, after: 200 }
                             }));
                         }
