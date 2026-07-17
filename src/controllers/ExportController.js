@@ -411,7 +411,13 @@ export const ExportModule = {
         let logoImg = null;
         if (this.config.logo) {
             try {
-                const logoBytes = await LogiNative.getBlobBytes(this.config.logo);
+                let logoBytes = null;
+                if (this.config.logo.startsWith('data:')) {
+                    const base64 = this.config.logo.split(',')[1];
+                    logoBytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+                } else {
+                    logoBytes = await LogiNative.getBlobBytes(this.config.logo);
+                }
                 if (logoBytes) logoImg = await doc.embedJpg(logoBytes);
             } catch (e) { console.warn("Logo no cargado", e); }
         }
@@ -505,7 +511,13 @@ export const ExportModule = {
         let logoImg = null;
         if (this.config.logo) {
             try {
-                const logoBytes = await LogiNative.getBlobBytes(this.config.logo);
+                let logoBytes = null;
+                if (this.config.logo.startsWith('data:')) {
+                    const base64 = this.config.logo.split(',')[1];
+                    logoBytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+                } else {
+                    logoBytes = await LogiNative.getBlobBytes(this.config.logo);
+                }
                 if (logoBytes) logoImg = await doc.embedJpg(logoBytes);
             } catch (e) { console.warn("Logo no cargado", e); }
         }
@@ -928,13 +940,30 @@ export const ExportModule = {
                 width: { size: 10500, type: WidthType.DXA },
                 borders: {
                     top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
-                    bottom: { style: BorderStyle.SINGLE, size: 8, color: "E0E0E0" },
+                    bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                     left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                     right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                     insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                     insideVertical: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                 },
                 rows: [
+                    // Fila 1: Barra verde superior (como drawRectangle en PDF)
+                    new TableRow({
+                        children: [
+                            new TableCell({
+                                width: { size: 10500, type: WidthType.DXA },
+                                shading: { fill: "cafd00" },
+                                borders: {
+                                    top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                                    bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                                    left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                                    right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                                },
+                                children: [new Paragraph({ spacing: { before: 80, after: 80 } })], // Barra verde fina
+                            })
+                        ]
+                    }),
+                    // Fila 2: Título y Logo
                     new TableRow({
                         children: [
                             new TableCell({
@@ -942,8 +971,9 @@ export const ExportModule = {
                                     new Paragraph({
                                         children: [
                                             new TextRun({ text: "LOGI", bold: true, color: "cafd00", size: 32 }), 
-                                            new TextRun({ text: `  |  ${(project.name || "").toUpperCase()}`, bold: true, color: "000000", size: 20 }),
+                                            new TextRun({ text: `   ${(project.name || "").toUpperCase()}`, bold: true, color: "000000", size: 20 }),
                                         ],
+                                        spacing: { before: 100 }
                                     }),
                                     new Paragraph({
                                         children: [
@@ -968,7 +998,8 @@ export const ExportModule = {
                                     bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                                     left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                                     right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
-                                }
+                                },
+                                verticalAlign: VerticalAlign.CENTER
                             }),
                         ],
                     }),
@@ -1123,13 +1154,30 @@ export const ExportModule = {
                 width: { size: 10500, type: WidthType.DXA },
                 borders: {
                     top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }, 
-                    bottom: { style: BorderStyle.SINGLE, size: 8, color: "000000" },
+                    bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                     left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }, 
                     right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                     insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                     insideVertical: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }
                 },
                 rows: [
+                    // Fila 1: Barra negra superior (en el reporte técnico es negro, como drawRectangle en PDF)
+                    new TableRow({
+                        children: [
+                            new TableCell({
+                                width: { size: 10500, type: WidthType.DXA },
+                                shading: { fill: "000000" },
+                                borders: {
+                                    top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                                    bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                                    left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                                    right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                                },
+                                children: [new Paragraph({ spacing: { before: 80, after: 80 } })], // Barra negra fina
+                            })
+                        ]
+                    }),
+                    // Fila 2: Título y Logo
                     new TableRow({
                         children: [
                             new TableCell({
@@ -1143,7 +1191,13 @@ export const ExportModule = {
                                         spacing: { after: 200 }
                                     })
                                 ],
-                                width: { size: 4200, type: WidthType.DXA }
+                                width: { size: 4200, type: WidthType.DXA },
+                                borders: {
+                                    top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                                    bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                                    left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                                    right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                                }
                             }),
                             new TableCell({
                                 children: logoCellChildren.length > 0 ? logoCellChildren : [new Paragraph("")],
