@@ -927,10 +927,12 @@ export const ExportModule = {
             const headerTable = new Table({
                 width: { size: 10500, type: WidthType.DXA },
                 borders: {
-                    top: { style: BorderStyle.NONE },
+                    top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                     bottom: { style: BorderStyle.SINGLE, size: 8, color: "E0E0E0" },
-                    left: { style: BorderStyle.NONE },
-                    right: { style: BorderStyle.NONE },
+                    left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                    right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                    insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                    insideVertical: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                 },
                 rows: [
                     new TableRow({
@@ -951,12 +953,22 @@ export const ExportModule = {
                                     }),
                                 ],
                                 width: { size: 7350, type: WidthType.DXA },
-                                borders: { bottom: { style: BorderStyle.NONE } }
+                                borders: {
+                                    top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                                    bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                                    left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                                    right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                                }
                             }),
                             new TableCell({
                                 children: headerLogoContent.length > 0 ? headerLogoContent : [new Paragraph({ text: "" })],
                                 width: { size: 3150, type: WidthType.DXA },
-                                borders: { bottom: { style: BorderStyle.NONE } }
+                                borders: {
+                                    top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                                    bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                                    left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                                    right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                                }
                             }),
                         ],
                     }),
@@ -1018,10 +1030,10 @@ export const ExportModule = {
                         children: cellChildren,
                         width: { size: 5250, type: WidthType.DXA },
                         borders: {
-                            top: { style: BorderStyle.NONE },
-                            bottom: { style: BorderStyle.NONE },
-                            left: { style: BorderStyle.NONE },
-                            right: { style: BorderStyle.NONE },
+                            top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                            bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                            left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                            right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                         },
                         margins: { top: 100, bottom: 100, left: 200, right: 200 }
                     }));
@@ -1033,12 +1045,12 @@ export const ExportModule = {
                 rows: docRows,
                 width: { size: 10500, type: WidthType.DXA },
                 borders: {
-                    top: { style: BorderStyle.NONE },
-                    bottom: { style: BorderStyle.NONE },
-                    left: { style: BorderStyle.NONE },
-                    right: { style: BorderStyle.NONE },
-                    insideHorizontal: { style: BorderStyle.NONE },
-                    insideVertical: { style: BorderStyle.NONE }
+                    top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                    bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                    left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                    right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                    insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                    insideVertical: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }
                 }
             });
 
@@ -1110,8 +1122,12 @@ export const ExportModule = {
             const headerTable = new Table({
                 width: { size: 10500, type: WidthType.DXA },
                 borders: {
-                    top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.SINGLE, size: 8, color: "000000" },
-                    left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }
+                    top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }, 
+                    bottom: { style: BorderStyle.SINGLE, size: 8, color: "000000" },
+                    left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }, 
+                    right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                    insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                    insideVertical: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }
                 },
                 rows: [
                     new TableRow({
@@ -1132,7 +1148,13 @@ export const ExportModule = {
                             new TableCell({
                                 children: logoCellChildren.length > 0 ? logoCellChildren : [new Paragraph("")],
                                 width: { size: 2100, type: WidthType.DXA },
-                                verticalAlign: VerticalAlign.CENTER
+                                verticalAlign: VerticalAlign.CENTER,
+                                borders: {
+                                    top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                                    bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                                    left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                                    right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                                }
                             }),
                             new TableCell({
                                 children: [
@@ -1219,7 +1241,12 @@ export const ExportModule = {
                     cells.push(new TableCell({
                         children: cellChildren,
                         width: { size: 5250, type: WidthType.DXA },
-                        borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } },
+                        borders: { 
+                            top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }, 
+                            bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }, 
+                            left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }, 
+                            right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" } 
+                        },
                         margins: { top: 100, bottom: 100, left: 200, right: 200 }
                     }));
                 }
@@ -1230,12 +1257,12 @@ export const ExportModule = {
                 rows: docRows,
                 width: { size: 10500, type: WidthType.DXA },
                 borders: { 
-                    top: { style: BorderStyle.NONE }, 
-                    bottom: { style: BorderStyle.NONE }, 
-                    left: { style: BorderStyle.NONE }, 
-                    right: { style: BorderStyle.NONE },
-                    insideHorizontal: { style: BorderStyle.NONE },
-                    insideVertical: { style: BorderStyle.NONE }
+                    top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }, 
+                    bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }, 
+                    left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }, 
+                    right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                    insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+                    insideVertical: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }
                 }
             });
 
