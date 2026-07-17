@@ -690,7 +690,7 @@ export const ExportModule = {
      * _processImage: MOTOR DE PROCESAMIENTO HÍBRIDO (v192-TITAN-X)
      * Maneja redimensionamiento, marca de agua (logo) y estampado de fecha/hora.
      */
-    async _processImage(uint8Array, maxWidth, includeLogo = false, includeTimestamp = false, itemMeta = null, isClassic = false) {
+    async _processImage(uint8Array, maxWidth, includeLogo = false, includeTimestamp = false, itemMeta = null, isClassic = false, photoIndex = null) {
         return new Promise((resolve) => {
             const blob = new Blob([uint8Array], { type: 'image/jpeg' });
             const url = URL.createObjectURL(blob);
@@ -778,6 +778,20 @@ export const ExportModule = {
                     
                     ctx.fillStyle = '#cafd00'; // Color primario Logi
                     ctx.fillText(dateStr.toUpperCase(), tx, ty);
+                }
+
+                // 3. Etiqueta de Índice de Foto (Como en el PDF)
+                if (photoIndex !== null) {
+                    const badgeSize = Math.max(40, Math.floor(width * 0.08));
+                    ctx.fillStyle = '#cafd00'; // Color primario Logi
+                    ctx.fillRect(0, 0, badgeSize, badgeSize);
+                    
+                    ctx.fillStyle = '#000000';
+                    const badgeFontSize = Math.floor(badgeSize * 0.6);
+                    ctx.font = `bold ${badgeFontSize}px sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(photoIndex.toString(), badgeSize / 2, badgeSize / 2 + (badgeFontSize * 0.05));
                 }
 
                 canvas.toBlob((resultBlob) => {
@@ -923,7 +937,7 @@ export const ExportModule = {
                                 children: [
                                     new Paragraph({
                                         children: [
-                                            new TextRun({ text: "LOGI", bold: true, color: "555555", size: 32 }), 
+                                            new TextRun({ text: "LOGI", bold: true, color: "cafd00", size: 32 }), 
                                             new TextRun({ text: `  |  ${(project.name || "").toUpperCase()}`, bold: true, color: "000000", size: 20 }),
                                         ],
                                     }),
@@ -959,8 +973,10 @@ export const ExportModule = {
                     const cellChildren = [];
                     
                     if (snap) {
-                        const imgBytes = await LogiNative.getBlobBytes(snap.filename);
+                        let imgBytes = await LogiNative.getBlobBytes(snap.filename);
                         if (imgBytes) {
+                            const resizeW = 1024;
+                            imgBytes = await this._processImage(imgBytes, resizeW, this.config.whatsappIncludeLogo, this.config.whatsappIncludeTimestamp, snap, true, (i + j + 1));
                             cellChildren.push(new Paragraph({
                                 children: [
                                     new ImageRun({
@@ -1086,7 +1102,7 @@ export const ExportModule = {
                             new TableCell({
                                 children: [
                                     new Paragraph({
-                                        children: [new TextRun({ text: "LOGI", bold: true, size: 48, color: "000000" })],
+                                        children: [new TextRun({ text: "LOGI", bold: true, size: 48, color: "cafd00" })],
                                         spacing: { before: 200 }
                                     }),
                                     new Paragraph({
@@ -1230,7 +1246,7 @@ export const ExportModule = {
                 const includeTime = this.config.whatsappIncludeTimestamp;
                 const resizeW = customResizeWidth || 1024;
 
-                imgBytes = await this._processImage(imgBytes, resizeW, includeLogo, includeTime, snap, false);
+                imgBytes = await this._processImage(imgBytes, resizeW, includeLogo, includeTime, snap, false, (idx + 1));
                 
                 const img = await doc.embedJpg(imgBytes);
                 const drawW = slotW - 10;
