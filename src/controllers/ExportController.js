@@ -1016,13 +1016,14 @@ export const ExportModule = {
 
                     cells.push(new TableCell({
                         children: cellChildren,
-                        width: { size: 4500, type: WidthType.DXA },
+                        width: { size: 5250, type: WidthType.DXA },
                         borders: {
                             top: { style: BorderStyle.NONE },
                             bottom: { style: BorderStyle.NONE },
                             left: { style: BorderStyle.NONE },
                             right: { style: BorderStyle.NONE },
-                        }
+                        },
+                        margins: { top: 100, bottom: 100, left: 200, right: 200 }
                     }));
                 }
                 docRows.push(new TableRow({ children: cells }));
@@ -1031,6 +1032,14 @@ export const ExportModule = {
             const mainTable = new Table({
                 rows: docRows,
                 width: { size: 10500, type: WidthType.DXA },
+                borders: {
+                    top: { style: BorderStyle.NONE },
+                    bottom: { style: BorderStyle.NONE },
+                    left: { style: BorderStyle.NONE },
+                    right: { style: BorderStyle.NONE },
+                    insideHorizontal: { style: BorderStyle.NONE },
+                    insideVertical: { style: BorderStyle.NONE }
+                }
             });
 
             const doc = new Document({
@@ -1210,7 +1219,8 @@ export const ExportModule = {
                     cells.push(new TableCell({
                         children: cellChildren,
                         width: { size: 5250, type: WidthType.DXA },
-                        borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } }
+                        borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } },
+                        margins: { top: 100, bottom: 100, left: 200, right: 200 }
                     }));
                 }
                 docRows.push(new TableRow({ children: cells }));
@@ -1219,7 +1229,14 @@ export const ExportModule = {
             const mainTable = new Table({
                 rows: docRows,
                 width: { size: 10500, type: WidthType.DXA },
-                borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } }
+                borders: { 
+                    top: { style: BorderStyle.NONE }, 
+                    bottom: { style: BorderStyle.NONE }, 
+                    left: { style: BorderStyle.NONE }, 
+                    right: { style: BorderStyle.NONE },
+                    insideHorizontal: { style: BorderStyle.NONE },
+                    insideVertical: { style: BorderStyle.NONE }
+                }
             });
 
             const doc = new Document({
