@@ -768,15 +768,10 @@ export const LogiNative = {
                         files.push(file);
                     }
                     if (navigator.canShare({ files })) {
-                        // REQUISITO CLAVE: Web Share API falla si no hay un gesto de usuario
-                        if (typeof CaptureDialog !== 'undefined') {
-                            CaptureDialog.show(`LISTO PARA COMPARTIR. TOCA EL BOTÓN PARA ENVIAR ${files.length} FOTOS.`, async () => {
-                                try {
-                                    await navigator.share({ files, title: 'Logi Fotos' });
-                                } catch(e) { console.warn("Share cancelado", e); }
-                            }, false, "COMPARTIR");
-                        } else {
+                        try {
                             await navigator.share({ files, title: 'Logi Fotos' });
+                        } catch(e) {
+                            console.warn("Share cancelado o sin gesto:", e);
                         }
                     }
                 } catch(e) {
@@ -855,38 +850,24 @@ export const LogiNative = {
                         
                     const file = new File([blob], filename, { type: mimeType });
                     if (navigator.canShare({ files: [file] })) {
-                        // REQUISITO CLAVE: Web Share API falla si no hay un gesto de usuario (click) reciente.
-                        // Como la generación demora, pedimos al usuario que toque un botón para revivir el gesto.
-                        if (typeof CaptureDialog !== 'undefined') {
-                            CaptureDialog.show("DOCUMENTO LISTO. TOCA COMPARTIR PARA ENVIAR.", async () => {
-                                try {
-                                    await navigator.share({
-                                        files: [file],
-                                        title: 'Reporte Logi',
-                                        text: filename
-                                    });
-                                } catch (e) {
-                                    console.warn("Share cancelado o fallido:", e);
-                                    if (filename.endsWith('.docx')) {
-                                        alert("Tu navegador bloquea compartir archivos Word directamente por seguridad. El archivo se descargará a tu dispositivo; por favor búscalo en tus Descargas para enviarlo.");
-                                    }
-                                    const a = document.createElement("a");
-                                    const url = URL.createObjectURL(blob);
-                                    a.href = url;
-                                    a.download = filename;
-                                    a.click();
-                                    setTimeout(() => URL.revokeObjectURL(url), 1000);
-                                }
-                            }, false, "COMPARTIR");
-                            return; 
-                        } else {
-                            // Intento directo (probablemente falle por timeout)
+                        try {
                             await navigator.share({
                                 files: [file],
                                 title: 'Reporte Logi',
                                 text: filename
                             });
                             return;
+                        } catch(e) {
+                            console.warn("Share cancelado o fallido:", e);
+                            if (filename.endsWith('.docx')) {
+                                alert("Tu navegador bloquea compartir archivos Word directamente por seguridad. El archivo se descargará a tu dispositivo; por favor búscalo en tus Descargas para enviarlo.");
+                            }
+                            const a = document.createElement("a");
+                            const url = URL.createObjectURL(blob);
+                            a.href = url;
+                            a.download = filename;
+                            a.click();
+                            setTimeout(() => URL.revokeObjectURL(url), 1000);
                         }
                     }
                 } catch (e) {
@@ -1065,33 +1046,22 @@ export const LogiNative = {
                         const file = new File([blob], filename, { type: mimeType });
 
                         if (navigator.canShare({ files: [file] })) {
-                            if (typeof CaptureDialog !== 'undefined') {
-                                CaptureDialog.show("DOCUMENTO LISTO. TOCA COMPARTIR PARA ENVIAR.", async () => {
-                                    try {
-                                        await navigator.share({
-                                            files: [file],
-                                            title: 'Reporte Logi',
-                                            text: filename
-                                        });
-                                    } catch (e) {
-                                        console.warn("Share cancelado o fallido en reportes:", e);
-                                        if (filename.endsWith('.docx')) {
-                                            alert("Tu navegador bloquea compartir archivos Word directamente por seguridad. El archivo se descargará a tu dispositivo; por favor búscalo en tus Descargas para enviarlo.");
-                                        }
-                                        const a = document.createElement('a');
-                                        a.href = uri;
-                                        a.download = filename;
-                                        a.click();
-                                    }
-                                }, false, "COMPARTIR");
-                                return; // Salir y esperar el click
-                            } else {
+                            try {
                                 await navigator.share({
                                     files: [file],
                                     title: 'Reporte Logi',
                                     text: filename
                                 });
                                 return;
+                            } catch (e) {
+                                console.warn("Share cancelado o fallido en reportes:", e);
+                                if (filename.endsWith('.docx')) {
+                                    alert("Tu navegador bloquea compartir archivos Word directamente por seguridad. El archivo se descargará a tu dispositivo; por favor búscalo en tus Descargas para enviarlo.");
+                                }
+                                const a = document.createElement('a');
+                                a.href = uri;
+                                a.download = filename;
+                                a.click();
                             }
                         }
                     } catch (e) {
