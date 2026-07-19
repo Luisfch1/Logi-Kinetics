@@ -4,6 +4,7 @@ import { Share } from '@capacitor/share';
 import { Preferences } from '@capacitor/preferences';
 import { Capacitor } from '@capacitor/core';
 import { State } from './state.js';
+import { CaptureDialog } from '../screens/capture/CaptureDialog.js';
 
 const PRIMARY_DIR = Directory.Data; // Nexus Shield: Switch to Data for maximum speed (v189)
 const DATA_DIR = 'Logi';
@@ -816,15 +817,33 @@ export const LogiNative = {
                         
                     const file = new File([blob], filename, { type: mimeType });
                     if (navigator.canShare({ files: [file] })) {
-                        await navigator.share({
-                            files: [file],
-                            title: 'Reporte Logi',
-                            text: filename
-                        });
-                        return; // Compartido con éxito, no descargamos
+                        // REQUISITO CLAVE: Web Share API falla si no hay un gesto de usuario (click) reciente.
+                        // Como la generación demora, pedimos al usuario que toque un botón para revivir el gesto.
+                        if (typeof CaptureDialog !== 'undefined') {
+                            CaptureDialog.show("DOCUMENTO LISTO. TOCA COMPARTIR PARA ENVIAR.", async () => {
+                                try {
+                                    await navigator.share({
+                                        files: [file],
+                                        title: 'Reporte Logi',
+                                        text: filename
+                                    });
+                                } catch (e) {
+                                    console.warn("Share cancelado o fallido:", e);
+                                }
+                            }, false, "COMPARTIR");
+                            return; // El flujo termina aquí (el diálogo maneja el resto)
+                        } else {
+                            // Intento directo (probablemente falle por timeout)
+                            await navigator.share({
+                                files: [file],
+                                title: 'Reporte Logi',
+                                text: filename
+                            });
+                            return;
+                        }
                     }
                 } catch (e) {
-                    console.warn("Web Share API falló o se canceló:", e);
+                    console.warn("Web Share API falló:", e);
                 }
             }
 
@@ -980,6 +999,44 @@ export const LogiNative = {
         if (!LogiNative.isNative()) {
             const uri = await LogiNative.getReportUri(filename);
             if (uri) {
+                if (navigator.share && navigator.canShare) {
+                    try {
+                        const res = await fetch(uri);
+                        const blob = await res.blob();
+                        const mimeType = filename.endsWith('.docx') 
+                            ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
+                            : (filename.endsWith('.pdf') ? 'application/pdf' : blob.type);
+                        const file = new File([blob], filename, { type: mimeType });
+
+                        if (navigator.canShare({ files: [file] })) {
+                            if (typeof CaptureDialog !== 'undefined') {
+                                CaptureDialog.show("DOCUMENTO LISTO. TOCA COMPARTIR PARA ENVIAR.", async () => {
+                                    try {
+                                        await navigator.share({
+                                            files: [file],
+                                            title: 'Reporte Logi',
+                                            text: filename
+                                        });
+                                    } catch (e) {
+                                        console.warn("Share cancelado o fallido en reportes:", e);
+                                    }
+                                }, false, "COMPARTIR");
+                                return; // Salir y esperar el click
+                            } else {
+                                await navigator.share({
+                                    files: [file],
+                                    title: 'Reporte Logi',
+                                    text: filename
+                                });
+                                return;
+                            }
+                        }
+                    } catch (e) {
+                        console.warn("Web Share falló en vista reportes:", e);
+                    }
+                }
+                
+                // Fallback a descarga
                 const a = document.createElement('a');
                 a.href = uri;
                 a.download = filename;

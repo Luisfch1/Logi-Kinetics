@@ -5,16 +5,16 @@
 export const CaptureDialog = {
     overlay: null,
 
-    show(message, onConfirm, isProcessing = false) {
-        this._renderBase(message, isProcessing);
+    show(message, onConfirm, isProcessing = false, confirmText = "Confirmar") {
+        this._renderBase(message, isProcessing, false, "", confirmText);
         if (!isProcessing && typeof onConfirm === 'function') {
             const btnConfirm = this.overlay.querySelector('#dlg-confirm');
             if (btnConfirm) btnConfirm.onclick = () => { onConfirm(); this.hide(); };
         }
     },
 
-    showPrompt(message, placeholder, onConfirm) {
-        this._renderBase(message, false, true, placeholder);
+    showPrompt(message, placeholder, onConfirm, confirmText = "Confirmar") {
+        this._renderBase(message, false, true, placeholder, confirmText);
         const btnConfirm = this.overlay.querySelector('#dlg-confirm');
         const input = this.overlay.querySelector('#dlg-input');
         if (btnConfirm && input) {
@@ -25,7 +25,7 @@ export const CaptureDialog = {
         }
     },
 
-    _renderBase(message, isProcessing = false, isPrompt = false, placeholder = "") {
+    _renderBase(message, isProcessing = false, isPrompt = false, placeholder = "", confirmText = "Confirmar") {
         this.hide();
         this.overlay = document.createElement('div');
         this.overlay.id = 'capture-dialog-overlay';
@@ -54,7 +54,7 @@ export const CaptureDialog = {
                         Cancelar
                     </button>
                     <button id="dlg-confirm" class="flex-1 h-12 rounded-2xl bg-primary text-[10px] text-black font-black uppercase active:scale-95 transition-all shadow-neon">
-                        Confirmar
+                        ${confirmText}
                     </button>
                 </div>
                 ` : `

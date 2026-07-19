@@ -13,7 +13,7 @@ export const LandscapeScaffold = {
                 <!-- Se coloca con padding derecho para no ser tapada por la barra lateral fija -->
                 <header class="w-full z-50 px-6 py-4 flex justify-between items-center bg-black/80 backdrop-blur-xl border-b border-white/5 pr-[120px]" onclick="ProjectModule.openManager()">
                     <div class="flex items-center gap-3 group cursor-pointer active:opacity-50 transition-opacity">
-                        <h1 class="font-headline font-black tracking-tighter uppercase text-base text-primary drop-shadow-[0_0_8px_var(--primary-glow)]">LOGI 0.3</h1>
+                        <h1 class="font-headline font-black tracking-tighter uppercase text-base text-primary drop-shadow-[0_0_8px_var(--primary-glow)]">LOGI 0.4</h1>
                         <span class="material-symbols-outlined text-white/20 text-lg">chevron_right</span>
                         <span id="header-project-name" class="font-headline font-bold tracking-tight uppercase text-xs text-white/60">PROYECTO PRINCIPAL</span>
                     </div>
