@@ -53,10 +53,13 @@ class ReportsController {
             const uri = await LogiNative.getReportUri(filename);
             if (uri) {
                 if (filename.toLowerCase().endsWith('.pdf')) {
-                    const w = window.open();
-                    if (w) {
-                        w.document.write(`<iframe src="${uri}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
-                    } else {
+                    try {
+                        const res = await fetch(uri);
+                        const blob = await res.blob();
+                        const blobUrl = URL.createObjectURL(blob);
+                        window.open(blobUrl, '_blank');
+                    } catch (e) {
+                        console.warn("[ReportsCtrl] Error abriendo PDF blob:", e);
                         const a = document.createElement('a');
                         a.href = uri;
                         a.download = filename;

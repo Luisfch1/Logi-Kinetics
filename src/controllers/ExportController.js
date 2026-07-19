@@ -357,22 +357,17 @@ export const ExportModule = {
 
                 this._updateProgress(`GENERANDO WORD Y PDF (${adaptiveMaxWidth}px)...`);
                 
-                // 1. Generar Word
+                // 1. Generar Word (Comparte automáticamente)
                 if (tmplId === 'Plantilla2.pdf' || tmplId === 'Plantilla3.pdf') {
                     await this._generateTechnicalDocx(project, filtered, `${baseFileName}.docx`, adaptiveMaxWidth);
+                    this._updateProgress(`GENERANDO VISTA PREVIA PDF...`);
+                    await this._generateTechnicalReport(project, filtered, `${baseFileName}.pdf`, adaptiveMaxWidth, true);
                 } else {
                     await this._generateDocx(project, filtered, `${baseFileName}.docx`, adaptiveMaxWidth);
+                    this._updateProgress(`GENERANDO VISTA PREVIA PDF...`);
+                    await this._generateClassicReport(project, filtered, `${baseFileName}.pdf`, adaptiveMaxWidth, true);
                 }
 
-                // v191.9-TURBO: Guardar metadatos para regeneración on-demand (Opción B)
-                const meta = {
-                    tmplId,
-                    itemIds: filtered.map(f => f.id),
-                    projectName: project.name,
-                    projectId: project.id,
-                    timestamp
-                };
-                await LogiNative.saveReportMeta(`${baseFileName}.meta`, meta, project.id);
             } else if (format === 'zip') {
                 this._updateProgress(`GENERANDO PAQUETE ZIP...`);
                 await this._generateZipExport(project, filtered, `${baseFileName}.zip`);
@@ -402,7 +397,7 @@ export const ExportModule = {
         return;
     },
 
-    async _generateClassicReport(project, filtered, fileName, customResizeWidth) {
+    async _generateClassicReport(project, filtered, fileName, customResizeWidth, skipShare = false) {
         const { PDFDocument, rgb, StandardFonts } = window.PDFLib;
         const doc = await PDFDocument.create();
         const Helvetica = await doc.embedFont(StandardFonts.Helvetica);
@@ -483,8 +478,8 @@ export const ExportModule = {
         const finalName = fileName || `Reporte_Clasico_${project.name || 'Logi'}_${Date.now()}.pdf`;
         this._updateProgress("GUARDANDO EN DISCO...");
         const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-        this._updateProgress("COMPARTIENDO INFORMACIÓN...");
-        await LogiNative.shareBlob(blob, finalName, project.id);
+        this._updateProgress(skipShare ? "GUARDANDO PDF..." : "COMPARTIENDO INFORMACIÓN...");
+        await LogiNative.shareBlob(blob, finalName, project.id, skipShare);
     },
 
     _drawHeader(page, project, logoImg, dateLabel, fontNormal, fontBold, rgb, w, h, m) {
@@ -496,7 +491,7 @@ export const ExportModule = {
         page.drawText(`REGISTRO FOTOGRÁFICO: ${dateLabel.toUpperCase()}`, { x: m + 50, y: h - 48, size: 7, font: fontNormal, color: rgb(0.4, 0.4, 0.4) });
     },
 
-    async _generateTechnicalReport(project, filtered, fileName, customResizeWidth) {
+    async _generateTechnicalReport(project, filtered, fileName, customResizeWidth, skipShare = false) {
         const { PDFDocument, rgb, StandardFonts } = window.PDFLib;
         const doc = await PDFDocument.create();
         const Helvetica = await doc.embedFont(StandardFonts.Helvetica);
@@ -577,8 +572,8 @@ export const ExportModule = {
         const finalName = fileName || `Reporte_Tecnico_${project.name || 'Logi'}_${Date.now()}.pdf`;
         this._updateProgress("GUARDANDO EN DISCO...");
         const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-        this._updateProgress("COMPARTIENDO INFORMACIÓN...");
-        await LogiNative.shareBlob(blob, finalName, project.id);
+        this._updateProgress(skipShare ? "GUARDANDO PDF..." : "COMPARTIENDO INFORMACIÓN...");
+        await LogiNative.shareBlob(blob, finalName, project.id, skipShare);
     },
 
     _drawHeaderV2(page, project, logoImg, dateLabel, fontNormal, fontBold, rgb, w, h, m) {

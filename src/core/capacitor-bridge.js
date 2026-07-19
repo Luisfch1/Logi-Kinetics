@@ -781,8 +781,10 @@ export const LogiNative = {
     // --- HELPERS INTERNOS ---
     _getReportsPath: (pid) => `_LOGI_VAULT_/Reports/_proj_${pid || 'p_default'}`,
 
-    shareBlob: async (blob, filename, projectId) => {
+    shareBlob: async (blob, filename, projectId, skipShare = false) => {
         const pid = projectId || State.currentProject?.id || 'p_default';
+        const normPid = (typeof State._norm === 'function') ? State._norm(pid) : pid;
+
         if (!LogiNative.isNative()) {
             // 1. Guardar metadatos del reporte en LocalStorage
             const list = JSON.parse(localStorage.getItem('logi_reports_web') || '[]');
@@ -809,7 +811,7 @@ export const LogiNative = {
             }
 
             // 3. Intentar compartir mediante Web Share API (Móvil PWA)
-            if (navigator.share && navigator.canShare) {
+            if (navigator.share && navigator.canShare && !skipShare) {
                 try {
                     const mimeType = filename.endsWith('.docx') 
                         ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
@@ -857,12 +859,14 @@ export const LogiNative = {
             }
 
             // 4. Fallback a Descargar en PC o navegadores sin soporte
-            const url = URL.createObjectURL(blob);
-            const a = document.getElementById("hidden-download-link") || document.createElement("a");
-            a.href = url;
-            a.download = filename;
-            a.click();
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            if (!skipShare) {
+                const url = URL.createObjectURL(blob);
+                const a = document.getElementById("hidden-download-link") || document.createElement("a");
+                a.href = url;
+                a.download = filename;
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+            }
             return;
         }
 
@@ -888,7 +892,14 @@ export const LogiNative = {
             await withTimeout(Filesystem.writeFile({ path, data: base64, directory: PRIMARY_DIR, recursive: true }), 30000);
 
             const res = await withTimeout(Filesystem.getUri({ path, directory: PRIMARY_DIR }));
-            await Share.share({ title: 'Reporte Logi', files: [res.uri] });
+            if (!skipShare) {
+                try {
+                    await Share.share({ title: 'Reporte Logi', files: [res.uri] });
+                } catch (shareErr) {
+                    console.warn("Share with files array failed, trying url fallback:", shareErr);
+                    await Share.share({ title: 'Reporte Logi', url: res.uri });
+                }
+            }
         } catch (e) {
             console.error("ShareBlob Error:", e);
             throw e;
