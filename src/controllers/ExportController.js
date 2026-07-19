@@ -964,8 +964,8 @@ export const ExportModule = {
                                 children: [
                                     new Paragraph({
                                         children: [
-                                            new TextRun({ text: "LOGI", bold: true, color: "cafd00", size: 32 }), 
-                                            new TextRun({ text: `   ${(project.name || "").toUpperCase()}`, bold: true, color: "000000", size: 20 }),
+                                            new TextRun({ text: "LOGI", bold: true, color: "cafd00", size: 36 }), 
+                                            new TextRun({ text: `   ${(project.name || "").toUpperCase()}`, bold: true, color: "000000", size: 22 }),
                                         ],
                                         spacing: { before: 200 }
                                     }),
@@ -1025,7 +1025,7 @@ export const ExportModule = {
                                     }),
                                 ],
                                 alignment: AlignmentType.LEFT,
-                                spacing: { before: 200, after: 100 },
+                                spacing: { before: 100, after: 50 },
                             }));
                         }
 
@@ -1036,7 +1036,7 @@ export const ExportModule = {
                                     text: itemName 
                                         ? `FOTO ${i + j + 1}: ${(snap.actividad || 'GENERAL').toUpperCase()} - ${itemName}`
                                         : `FOTO ${i + j + 1}: ${(snap.actividad || 'GENERAL').toUpperCase()}`, 
-                                    bold: true, size: 18 
+                                    bold: true, size: 15 
                                 }),
                             ],
                             alignment: AlignmentType.LEFT,
@@ -1044,10 +1044,10 @@ export const ExportModule = {
 
                         cellChildren.push(new Paragraph({
                             children: [
-                                new TextRun({ text: (snap.descripcion || 'SIN DESCRIPCIÓN').toUpperCase(), color: "444444", size: 14 }),
+                                new TextRun({ text: (snap.descripcion || 'SIN DESCRIPCIÓN').toUpperCase(), color: "444444", size: 12 }),
                             ],
                             alignment: AlignmentType.LEFT,
-                            spacing: { after: 300 },
+                            spacing: { after: 150 },
                         }));
                     }
 
