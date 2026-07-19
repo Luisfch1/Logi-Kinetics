@@ -116,6 +116,14 @@ export const SettingsView = {
                 BackupModule.exportTotal((p) => this.updateProgress(p));
             };
         }
+
+        const btnExportControl = document.getElementById('btn-export-control');
+        if (btnExportControl) {
+            btnExportControl.onclick = () => {
+                if (!State.currentProject) return alert("No hay un proyecto activo seleccionado.");
+                BackupModule.exportToControl(State.currentProject.id, (p) => this.updateProgress(p));
+            };
+        }
     },
 
     updateProgress(p) {

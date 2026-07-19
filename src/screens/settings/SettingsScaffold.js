@@ -144,6 +144,25 @@ export const SettingsScaffold = {
                                 </button>
                             </div>
                         </div>
+
+                        <!-- Exportar a CONTROL -->
+                        <div class="glass-card rounded-xl p-6 flex items-center justify-between border-l-2 border-l-[#ff6d00]/30">
+                            <div class="flex items-center gap-4">
+                                <div class="text-[#ff6d00]">
+                                    <span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">construction</span>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="font-headline text-sm font-bold">Exportar a CONTROL</p>
+                                    <p class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest mt-0.5">Generar archivo nativo .lchp</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button id="btn-export-control" title="Exportar a CONTROL" class="px-4 h-10 rounded-lg bg-surface-container-high border border-outline-variant flex items-center justify-center gap-2 hover:text-[#ff6d00] hover:border-[#ff6d00]/40 transition-all active:scale-90 font-headline text-[10px] font-bold tracking-widest uppercase">
+                                    <span class="material-symbols-outlined text-xl">file_export</span>
+                                    <span>Exportar</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </section>
 

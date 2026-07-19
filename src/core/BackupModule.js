@@ -133,6 +133,81 @@ export const BackupModule = {
     },
 
     /**
+     * Exporta el proyecto activo en formato compatible con CONTROL (.lchp)
+     */
+    async exportToControl(projectId, onProgress) {
+        if (this.isProcessing) return;
+        this.isProcessing = true;
+        this.progressCallback = onProgress;
+
+        try {
+            const zip = new JSZip();
+            const project = State.projects.find(p => p.id === projectId);
+            if (!project) throw new Error("Proyecto no encontrado");
+
+            this._notifyProgress(0, 1, "Preparando formato nativo para CONTROL...");
+
+            const items = State._allItems.filter(it => it.projectId === projectId);
+            
+            // Estructura esperada por Control
+            const entries = items.map(it => ({
+                id: String(it.id),
+                date: new Date(it.createdAt || Date.now()).toISOString().split('T')[0],
+                itemCode: String(it.actividad || it.itemCode || ""),
+                description: String(it.descripcion || ""),
+                status: 'integrated',
+                imageUrl: "",
+                isLocal: true
+            }));
+
+            const backupData = {
+                version: 1,
+                projectId: project.id,
+                projectName: project.name,
+                entries: entries,
+                items: entries
+            };
+
+            zip.file("backup.json", JSON.stringify(backupData, null, 2));
+
+            // Agregar Fotos (En la raíz de photos/ con nombre ID.jpg)
+            const photoFolder = zip.folder("photos");
+            let count = 0;
+            const total = items.length;
+
+            for (const it of items) {
+                this._notifyProgress(count, total, `Empacando evidencias... (${count}/${total})`);
+                const base64 = await LogiNative.readBlobAsBase64(it.filename);
+                if (base64) {
+                    const parts = base64.split(',');
+                    const rawData = parts.length > 1 ? parts[1] : parts[0];
+                    let ext = 'jpg';
+                    if (parts[0].includes('image/png')) ext = 'png';
+                    else if (parts[0].includes('image/webp')) ext = 'webp';
+                    
+                    photoFolder.file(`${it.id}.${ext}`, rawData, { base64: true });
+                }
+                count++;
+            }
+
+            this._notifyProgress(total, total, "Generando paquete .lchp...");
+            const blob = await zip.generateAsync({ type: "blob" });
+            const safeName = project.name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+            const filename = `${safeName}_Fotos.lchp`;
+            
+            // Guardar usando el Share Bridge (Capacitor/Filesystem)
+            await this._saveAndShareZip(blob, filename);
+
+        } catch (e) {
+            console.error("Export Control Error:", e);
+            alert("Error al exportar a Control: " + e.message);
+        } finally {
+            this.isProcessing = false;
+            this._notifyProgress(100, 100, "Completado");
+        }
+    },
+
+    /**
      * Exporta TODOS los proyectos a ZIP (Respaldo Total)
      */
     async exportTotal(onProgress) {
@@ -318,7 +393,10 @@ export const BackupModule = {
 
                 if (zip) {
                     const targetFile = cleanItem.filename.toLowerCase();
-                    const zipKey = filesIndex[targetFile];
+                    const targetIdFile = `${cleanItem.id}.jpg`.toLowerCase();
+                    let zipKey = filesIndex[targetFile];
+                    if (!zipKey) zipKey = filesIndex[targetIdFile];
+                    
                     const photoFile = zipKey ? zip.file(zipKey) : null;
                     let photoLoaded = false;
 
