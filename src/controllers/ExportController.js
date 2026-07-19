@@ -10,7 +10,7 @@ import { ReportsModule } from './ReportsController.js';
 import { 
     Document, Packer, Paragraph, TextRun, ImageRun, 
     Table, TableRow, TableCell, WidthType, AlignmentType, 
-    Header, Footer, BorderStyle, HeightRule, VerticalAlign 
+    Header, Footer, BorderStyle, HeightRule, VerticalAlign, ShadingType
 } from 'docx';
 
 export const ExportModule = {
