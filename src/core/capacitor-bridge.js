@@ -829,9 +829,18 @@ export const LogiNative = {
                                     });
                                 } catch (e) {
                                     console.warn("Share cancelado o fallido:", e);
+                                    if (filename.endsWith('.docx')) {
+                                        alert("Tu navegador bloquea compartir archivos Word directamente por seguridad. El archivo se descargará a tu dispositivo; por favor búscalo en tus Descargas para enviarlo.");
+                                    }
+                                    const a = document.createElement("a");
+                                    const url = URL.createObjectURL(blob);
+                                    a.href = url;
+                                    a.download = filename;
+                                    a.click();
+                                    setTimeout(() => URL.revokeObjectURL(url), 1000);
                                 }
                             }, false, "COMPARTIR");
-                            return; // El flujo termina aquí (el diálogo maneja el resto)
+                            return; 
                         } else {
                             // Intento directo (probablemente falle por timeout)
                             await navigator.share({
@@ -1019,6 +1028,13 @@ export const LogiNative = {
                                         });
                                     } catch (e) {
                                         console.warn("Share cancelado o fallido en reportes:", e);
+                                        if (filename.endsWith('.docx')) {
+                                            alert("Tu navegador bloquea compartir archivos Word directamente por seguridad. El archivo se descargará a tu dispositivo; por favor búscalo en tus Descargas para enviarlo.");
+                                        }
+                                        const a = document.createElement('a');
+                                        a.href = uri;
+                                        a.download = filename;
+                                        a.click();
                                     }
                                 }, false, "COMPARTIR");
                                 return; // Salir y esperar el click
