@@ -461,7 +461,11 @@ export const CaptureCtrl = {
                 micBtn.classList.remove('text-primary');
             }
 
-            await SpeechRecognition.start({ language: 'es-CO', partialResults: true });
+            await SpeechRecognition.start({ 
+                language: 'es-CO', 
+                partialResults: true,
+                popup: false 
+            });
             
             // Detener el pulse nativo después de 5 segundos
             setTimeout(() => {
