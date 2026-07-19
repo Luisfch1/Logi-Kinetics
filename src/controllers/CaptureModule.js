@@ -236,6 +236,11 @@ export const CaptureCtrl = {
 
     async capture() {
         try {
+            if (!LogiNative.isNative()) {
+                // PWA/Web: Usar input file nativo con capture (abre cámara del SO directamente)
+                return this._pickFileNative('camera');
+            }
+            // Capacitor Nativo: API directa
             const photo = await Camera.getPhoto({
                 quality: 60,
                 resultType: CameraResultType.Base64,
@@ -250,13 +255,18 @@ export const CaptureCtrl = {
 
     async pickFromGallery() {
         try {
+            if (!LogiNative.isNative()) {
+                // PWA/Web: Usar input file nativo multi-selección
+                return this._pickFileNative('gallery');
+            }
+            // Capacitor Nativo: API directa
             const res = await Camera.pickImages({ quality: 60, limit: 20 });
             console.log("[CaptureCtrl] Camera.pickImages completed. Count:", res.photos?.length);
             if (!res.photos || res.photos.length === 0) return;
 
             for (const p of res.photos) {
                 try {
-                    const base64 = await this.readAsBase64(p);
+                    const base64 = await this._readCapacitorPhoto(p);
                     if (base64) await this.processImage(base64);
                 } catch (photoErr) {
                     console.error("[CaptureCtrl] Error procesando foto individual:", photoErr);
@@ -268,40 +278,82 @@ export const CaptureCtrl = {
     },
 
     /**
-     * Convierte una foto de Capacitor a base64 puro.
-     * Android API 33+ ya no permite fetch() sobre paths nativos desde WebView.
-     * Se usa Filesystem.readFile como fallback robusto.
+     * Abre el selector de archivos nativo del SO (sin PWA overlay).
+     * 'camera' = abre cámara directa, 'gallery' = abre galería multi-select.
      */
-    async readAsBase64(photo) {
-        // Intento 1: path nativo via Filesystem (el más robusto en Android moderno)
-        if (LogiNative.isNative() && photo.path) {
+    _pickFileNative(mode) {
+        return new Promise((resolve) => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            if (mode === 'camera') {
+                input.capture = 'environment'; // Cámara trasera
+            } else {
+                input.multiple = true; // Multi-selección para galería
+            }
+
+            input.onchange = async (e) => {
+                const files = Array.from(e.target.files || []);
+                console.log(`[CaptureCtrl] _pickFileNative: ${files.length} archivo(s) seleccionado(s)`);
+                for (const file of files) {
+                    try {
+                        const base64 = await this._fileToBase64(file);
+                        if (base64) await this.processImage(base64);
+                    } catch (err) {
+                        console.error("[CaptureCtrl] Error procesando archivo:", err);
+                    }
+                }
+                resolve();
+            };
+            input.oncancel = () => resolve();
+            input.click();
+        });
+    },
+
+    /**
+     * Convierte un File/Blob a base64 puro (sin prefijo data:...).
+     */
+    _fileToBase64(file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const result = reader.result;
+                // Extraer solo la parte base64 sin el prefijo data:image/...;base64,
+                const base64 = result.split(',')[1];
+                resolve(base64 || null);
+            };
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(file);
+        });
+    },
+
+    /**
+     * Lee una foto de Capacitor nativo a base64 puro.
+     * Android API 33+ ya no permite fetch() sobre paths nativos.
+     */
+    async _readCapacitorPhoto(photo) {
+        // Intento 1: path nativo via Filesystem
+        if (photo.path) {
             try {
                 const file = await Filesystem.readFile({ path: photo.path });
-                // file.data ya viene en base64 puro
                 return typeof file.data === 'string' ? file.data : null;
             } catch (nativeErr) {
                 console.warn("[CaptureCtrl] Filesystem.readFile falló, intentando webPath:", nativeErr);
             }
         }
 
-        // Intento 2: webPath con fetch (funciona en web/emulador y Android antiguo)
-        const webPath = photo.webPath || photo;
-        if (webPath && typeof webPath === 'string') {
+        // Intento 2: webPath con fetch
+        if (photo.webPath) {
             try {
-                const response = await fetch(webPath);
+                const response = await fetch(photo.webPath);
                 const blob = await response.blob();
-                return new Promise(r => {
-                    const reader = new FileReader();
-                    reader.onload = () => r(reader.result.split(',')[1]);
-                    reader.onerror = () => r(null);
-                    reader.readAsDataURL(blob);
-                });
+                return this._fileToBase64(blob);
             } catch (fetchErr) {
                 console.warn("[CaptureCtrl] fetch falló:", fetchErr);
             }
         }
 
-        console.error("[CaptureCtrl] readAsBase64: No se pudo leer la foto.", photo);
+        console.error("[CaptureCtrl] _readCapacitorPhoto: No se pudo leer.", photo);
         return null;
     },
 
