@@ -338,8 +338,11 @@ class GalleryController {
     }
 
     async shareItem(id) {
-        const item = State.items.find(i => i.id === id);
-        if (!item) return;
+        const item = State.items.find(i => String(i.id) === String(id));
+        if (!item) {
+            console.warn("Item no encontrado para share:", id);
+            return;
+        }
         
         // v191.9-TURBO: Procesar con marca de agua antes de enviar a WhatsApp
         const res = await window.ExportModule.processForShare(item);

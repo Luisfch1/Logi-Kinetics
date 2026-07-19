@@ -123,20 +123,9 @@ export const GalleryEditOverlay = {
             this.hide();
         };
 
-        btnShare.onclick = async () => {
-            if (callbacks.onShare) {
-                const originalHtml = btnShare.innerHTML;
-                btnShare.innerHTML = '<span class="material-symbols-outlined text-xl animate-spin">sync</span>';
-                btnShare.style.pointerEvents = 'none';
-                try {
-                    await callbacks.onShare(this.activeItem.id);
-                } catch (e) {
-                    console.error("Error compartiendo desde overlay:", e);
-                } finally {
-                    btnShare.innerHTML = originalHtml;
-                    btnShare.style.pointerEvents = 'auto';
-                }
-            }
+        btnShare.onclick = (e) => {
+            e.stopPropagation();
+            if (callbacks.onShare) callbacks.onShare(this.activeItem.id);
         };
 
         btnItem.onclick = () => {
