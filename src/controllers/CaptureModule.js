@@ -388,20 +388,89 @@ export const CaptureCtrl = {
 
     async startVoiceDictation() {
         if (!this.selectedCardId) return;
+        
+        // Función interna para manejar el fallback web
+        const startWebSpeech = () => {
+            const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRec) {
+                alert("El motor de voz no está disponible en este dispositivo o navegador.");
+                return;
+            }
+            
+            const recognition = new SpeechRec();
+            recognition.lang = 'es-CO';
+            recognition.interimResults = true;
+            recognition.continuous = false;
+            
+            // Efecto visual básico en el botón de micrófono
+            const micBtn = document.getElementById('btn-global-mic');
+            if (micBtn) {
+                micBtn.classList.add('animate-pulse', 'text-red-500');
+                micBtn.classList.remove('text-primary');
+            }
+            
+            recognition.onresult = (event) => {
+                let text = "";
+                for (let i = 0; i < event.results.length; i++) {
+                    text += event.results[i][0].transcript;
+                }
+                const finalText = text.toUpperCase();
+                if (this.inputDesc) this.inputDesc.value = finalText;
+                this.updateDescription(finalText);
+            };
+            
+            recognition.onerror = (e) => {
+                console.error("Web Speech Error:", e);
+                if (micBtn) {
+                    micBtn.classList.remove('animate-pulse', 'text-red-500');
+                    micBtn.classList.add('text-primary');
+                }
+            };
+            
+            recognition.onend = () => {
+                if (micBtn) {
+                    micBtn.classList.remove('animate-pulse', 'text-red-500');
+                    micBtn.classList.add('text-primary');
+                }
+            };
+            
+            recognition.start();
+        };
+
         try {
-            // v191.9-ULTRA: Asegurar permisos antes de verificar disponibilidad
+            if (!LogiNative.isNative()) {
+                startWebSpeech();
+                return;
+            }
+
+            // Capacitor nativo
             const perms = await SpeechRecognition.checkPermissions();
             if (perms.speechRecognition !== 'granted') {
                 await SpeechRecognition.requestPermissions();
             }
 
             const avail = await SpeechRecognition.available();
-            if(!avail) {
-                const m = prompt("DICTADO MANUAL (Motor de voz no disponible):", "");
-                if(m) this.updateDescription(m.toUpperCase());
+            if (!avail) {
+                startWebSpeech();
                 return;
             }
+            
+            const micBtn = document.getElementById('btn-global-mic');
+            if (micBtn) {
+                micBtn.classList.add('animate-pulse', 'text-red-500');
+                micBtn.classList.remove('text-primary');
+            }
+
             await SpeechRecognition.start({ language: 'es-CO', partialResults: true });
+            
+            // Detener el pulse nativo después de 5 segundos
+            setTimeout(() => {
+                if (micBtn) {
+                    micBtn.classList.remove('animate-pulse', 'text-red-500');
+                    micBtn.classList.add('text-primary');
+                }
+            }, 5000);
+
             SpeechRecognition.addListener('partialResults', (data) => {
                 if (data.matches?.length > 0) {
                     const text = data.matches[0].toUpperCase();
@@ -410,8 +479,8 @@ export const CaptureCtrl = {
                 }
             });
         } catch(e) {
-            const m = prompt("DICTADO MANUAL:", "");
-            if(m) this.updateDescription(m.toUpperCase());
+            console.error("Speech Recognition error:", e);
+            startWebSpeech();
         }
     },
 
