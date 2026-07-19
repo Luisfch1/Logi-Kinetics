@@ -1,4 +1,4 @@
-const CACHE_NAME = 'logi-kinetics-cache-v2';
+const CACHE_NAME = 'logi-kinetics-cache-v3';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -15,7 +15,26 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  // Caching dynamic requests using Stale-While-Revalidate
+  // --- Network-First strategy para index.html (Navegación) ---
+  if (req.mode === 'navigate' || req.headers.get('accept').includes('text/html')) {
+    event.respondWith(
+      fetch(req).then((networkResponse) => {
+        if (networkResponse.ok) {
+          const cacheCopy = networkResponse.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(req, cacheCopy));
+        }
+        return networkResponse;
+      }).catch(() => {
+        // Fallback a caché si estamos offline
+        return caches.match(req).then(cached => {
+            return cached || caches.match('./index.html') || caches.match('./');
+        });
+      })
+    );
+    return;
+  }
+
+  // --- Stale-While-Revalidate para el resto (JS, CSS, Imágenes) ---
   event.respondWith(
     caches.match(req).then((cachedResponse) => {
       const fetchPromise = fetch(req).then((networkResponse) => {
@@ -26,12 +45,7 @@ self.addEventListener('fetch', (event) => {
           });
         }
         return networkResponse;
-      }).catch(() => {
-        // If offline and request is document, fallback to index
-        if (req.mode === 'navigate') {
-          return caches.match('./index.html') || caches.match('./');
-        }
-      });
+      }).catch(() => { /* ignorar errores offline para recursos estáticos */ });
 
       return cachedResponse || fetchPromise;
     })
