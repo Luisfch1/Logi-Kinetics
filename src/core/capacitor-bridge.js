@@ -753,28 +753,64 @@ export const LogiNative = {
     shareProcessed: async (processedItems) => {
         if (!LogiNative.isNative()) {
             console.log("Web Share (Simulado):", processedItems.length, "fotos.");
+            if (navigator.share && navigator.canShare) {
+                try {
+                    const files = [];
+                    for (const it of processedItems) {
+                        const base64Data = it.base64.split(',')[1] || it.base64;
+                        const byteCharacters = atob(base64Data);
+                        const byteNumbers = new Array(byteCharacters.length);
+                        for (let i = 0; i < byteCharacters.length; i++) {
+                            byteNumbers[i] = byteCharacters.charCodeAt(i);
+                        }
+                        const byteArray = new Uint8Array(byteNumbers);
+                        const file = new File([byteArray], it.filename, { type: 'image/jpeg' });
+                        files.push(file);
+                    }
+                    if (navigator.canShare({ files })) {
+                        // REQUISITO CLAVE: Web Share API falla si no hay un gesto de usuario
+                        if (typeof CaptureDialog !== 'undefined') {
+                            CaptureDialog.show(`LISTO PARA COMPARTIR. TOCA EL BOTÓN PARA ENVIAR ${files.length} FOTOS.`, async () => {
+                                try {
+                                    await navigator.share({ files, title: 'Logi Fotos' });
+                                } catch(e) { console.warn("Share cancelado", e); }
+                            }, false, "COMPARTIR");
+                        } else {
+                            await navigator.share({ files, title: 'Logi Fotos' });
+                        }
+                    }
+                } catch(e) {
+                    console.error("Web Share error:", e);
+                }
+            } else {
+                alert("Tu navegador no soporta compartir imágenes múltiples directamente. Usa la App nativa.");
+            }
             return;
         }
+
         const uris = [];
         for (const it of processedItems) {
             try {
-                // Guardamos en una carpeta temporal para compartir
-                const path = `${DATA_DIR}/temp_share/${it.filename}`;
+                // Guardamos en Directory.Cache porque Android rechaza compartir desde Data
+                const path = `temp_share/${it.filename}`;
                 await withTimeout(Filesystem.writeFile({
                     path,
                     data: it.base64.replace(/^data:image\/jpeg;base64,/, '').replace(/^data:image\/png;base64,/, ''),
-                    directory: PRIMARY_DIR,
+                    directory: Directory.Cache,
                     recursive: true
                 }));
-                const res = await withTimeout(Filesystem.getUri({ path, directory: PRIMARY_DIR }));
+                const res = await withTimeout(Filesystem.getUri({ path, directory: Directory.Cache }));
                 uris.push(res.uri);
             } catch (e) {
                 console.error("Error al preparar archivo para compartir:", e);
             }
         }
         if (uris.length > 0) {
-            await Share.share({ files: uris });
-            // Opcional: limpieza de archivos temporales (no implementado para evitar borrar mientras se comparte)
+            try {
+                await Share.share({ title: 'Fotos Logi', files: uris });
+            } catch (shareErr) {
+                console.warn("Share multiple files failed:", shareErr);
+            }
         }
     },
 
@@ -1074,9 +1110,23 @@ export const LogiNative = {
         try {
             const dirPath = LogiNative._getReportsPath(normPid);
             const path = `${dirPath}/${filename}`;
-            const res = await withTimeout(Filesystem.getUri({ path, directory: PRIMARY_DIR }));
-            await Share.share({ files: [res.uri] });
-        } catch (e) { }
+            const cachePath = `temp_share/${filename}`;
+            
+            await withTimeout(Filesystem.copy({
+                from: path,
+                directory: PRIMARY_DIR,
+                to: cachePath,
+                toDirectory: Directory.Cache
+            })).catch(() => {});
+            
+            const shareRes = await withTimeout(Filesystem.getUri({ path: cachePath, directory: Directory.Cache }));
+            try {
+                await Share.share({ title: 'Reporte Logi', files: [shareRes.uri] });
+            } catch (shareErr) {
+                console.warn("Share fallback:", shareErr);
+                await Share.share({ title: 'Reporte Logi', url: shareRes.uri });
+            }
+        } catch (e) { console.error("ShareReport Error:", e); }
     },
 
     viewReport: async (filename) => {
@@ -1087,6 +1137,16 @@ export const LogiNative = {
             const dirPath = LogiNative._getReportsPath(normPid);
             const path = `${dirPath}/${filename}`;
             const res = await withTimeout(Filesystem.getUri({ path, directory: PRIMARY_DIR }));
+            
+            const cachePath = `temp_share/${filename}`;
+            await withTimeout(Filesystem.copy({
+                from: path,
+                directory: PRIMARY_DIR,
+                to: cachePath,
+                toDirectory: Directory.Cache
+            })).catch(() => {});
+            const shareRes = await withTimeout(Filesystem.getUri({ path: cachePath, directory: Directory.Cache }));
+
             const opener = window.Capacitor?.Plugins?.FileOpener;
             if (opener) {
                 await opener.open({
@@ -1094,10 +1154,18 @@ export const LogiNative = {
                     contentType: filename.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
                 }).catch(async e => {
                     // Fallback a compartir si no hay app para abrir
-                    await Share.share({ files: [res.uri] });
+                    try {
+                        await Share.share({ title: 'Reporte Logi', files: [shareRes.uri] });
+                    } catch(err) {
+                        await Share.share({ title: 'Reporte Logi', url: shareRes.uri });
+                    }
                 });
             } else {
-                await Share.share({ files: [res.uri] });
+                try {
+                    await Share.share({ title: 'Reporte Logi', files: [shareRes.uri] });
+                } catch(err) {
+                    await Share.share({ title: 'Reporte Logi', url: shareRes.uri });
+                }
             }
         } catch (e) { console.error("ViewReport Error:", e); }
     },
