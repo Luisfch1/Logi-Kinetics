@@ -965,14 +965,15 @@ export const ExportModule = {
                                     new Paragraph({
                                         children: [
                                             new TextRun({ text: "LOGI", bold: true, color: "cafd00", size: 36 }), 
-                                            new TextRun({ text: `   ${(project.name || "").toUpperCase()}`, bold: true, color: "000000", size: 22 }),
+                                            new TextRun({ text: `    PROYECTO: ${(project.name || "").toUpperCase()}`, bold: true, color: "1A1A1A", size: 22 }),
                                         ],
                                         spacing: { before: 200 }
                                     }),
                                     new Paragraph({
                                         children: [
-                                            new TextRun({ text: `REGISTRO FOTOGRÁFICO: ${dateLabel.toUpperCase()}`, color: "888888", size: 14 }),
+                                            new TextRun({ text: `REGISTRO FOTOGRÁFICO: ${dateLabel.toUpperCase()}`, color: "666666", size: 14 }),
                                         ],
+                                        indent: { left: 950 }, // Alineado bajo el nombre del proyecto (~50px en PDF)
                                         spacing: { after: 100 },
                                     }),
                                 ],
@@ -1016,16 +1017,25 @@ export const ExportModule = {
                         if (imgBytes) {
                             const resizeW = 1024;
                             imgBytes = await this._processImage(imgBytes, resizeW, this.config.whatsappIncludeLogo, this.config.whatsappIncludeTimestamp, snap, true, (i + j + 1));
+                            
+                            const imgW = 260; 
+                            const imgH = 160;
                             cellChildren.push(new Paragraph({
                                 children: [
                                     new ImageRun({
                                         data: imgBytes,
-                                        transformation: { width: 280, height: 170 },
+                                        transformation: { width: imgW, height: imgH },
                                         docProperties: { id: ++drawingId, name: `Picture ${drawingId}` }
                                     }),
                                 ],
-                                alignment: AlignmentType.LEFT,
+                                alignment: AlignmentType.CENTER,
                                 spacing: { before: 100, after: 50 },
+                                border: { // Borde gris claro (imitando el rectángulo del PDF)
+                                    top: { style: BorderStyle.SINGLE, size: 4, color: "EFEFEF", space: 1 },
+                                    bottom: { style: BorderStyle.SINGLE, size: 4, color: "EFEFEF", space: 1 },
+                                    left: { style: BorderStyle.SINGLE, size: 4, color: "EFEFEF", space: 1 },
+                                    right: { style: BorderStyle.SINGLE, size: 4, color: "EFEFEF", space: 1 }
+                                }
                             }));
                         }
 
@@ -1033,9 +1043,15 @@ export const ExportModule = {
                         cellChildren.push(new Paragraph({
                             children: [
                                 new TextRun({ 
+                                    text: ` ${i + j + 1} `, // Índice con fondo verde neón
+                                    bold: true, size: 13, color: "000000",
+                                    shading: { type: ShadingType.CLEAR, fill: "cafd00" } 
+                                }),
+                                new TextRun({ text: "  " }),
+                                new TextRun({ 
                                     text: itemName 
-                                        ? `FOTO ${i + j + 1}: ${(snap.actividad || 'GENERAL').toUpperCase()} - ${itemName}`
-                                        : `FOTO ${i + j + 1}: ${(snap.actividad || 'GENERAL').toUpperCase()}`, 
+                                        ? `FOTO: ${(snap.actividad || 'GENERAL').toUpperCase()} - ${itemName}`
+                                        : `FOTO: ${(snap.actividad || 'GENERAL').toUpperCase()}`, 
                                     bold: true, size: 15 
                                 }),
                             ],
