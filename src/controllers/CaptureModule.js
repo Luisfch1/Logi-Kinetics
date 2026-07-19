@@ -417,18 +417,32 @@ export const CaptureCtrl = {
 
     async shareActions() {
         const items = this.isSelectionMode 
-            ? this.localItems.filter(it => this.selectedIds.has(it.id))
-            : (this.selectedCardId ? [this.localItems.find(i => i.id === this.selectedCardId)].filter(Boolean) : []);
+            ? this.localItems.filter(it => this.selectedIds.has(String(it.id)))
+            : (this.selectedCardId ? [this.localItems.find(i => String(i.id) === String(this.selectedCardId))].filter(Boolean) : []);
 
         if (items.length > 0) {
-            // v191.9-TURBO: Procesar fotos con marca de agua antes de compartir
-            const processed = [];
-            for (const item of items) {
-                const res = await window.ExportModule.processForShare(item);
-                if (res) processed.push(res);
+            // Loading UI feedback
+            if (this.btnGlobalShare) {
+                this.btnGlobalShare.innerHTML = '<span class="material-symbols-outlined text-xl animate-spin">sync</span>';
+                this.btnGlobalShare.style.pointerEvents = 'none';
             }
-            if (processed.length > 0) {
-                await LogiNative.shareProcessed(processed);
+
+            try {
+                // v191.9-TURBO: Procesar fotos con marca de agua antes de compartir
+                const processed = [];
+                for (const item of items) {
+                    const res = await window.ExportModule.processForShare(item);
+                    if (res) processed.push(res);
+                }
+                if (processed.length > 0) {
+                    await LogiNative.shareProcessed(processed);
+                }
+            } finally {
+                // Restore UI
+                if (this.btnGlobalShare) {
+                    this.btnGlobalShare.innerHTML = '<span class="material-symbols-outlined text-xl">share</span>';
+                    this.btnGlobalShare.style.pointerEvents = 'auto';
+                }
             }
         }
 
@@ -443,7 +457,7 @@ export const CaptureCtrl = {
     updateActionCardUI() {
         const label = document.getElementById('current-activity');
         if (label) {
-            const item = this.localItems.find(i => i.id === this.selectedCardId);
+            const item = this.localItems.find(i => String(i.id) === String(this.selectedCardId));
             label.innerText = (item ? item.actividad : 'SELECCIONAR...').toUpperCase();
             label.classList.toggle('text-white/20', !item);
             label.classList.toggle('text-white/90', !!item);
@@ -457,18 +471,29 @@ export const CaptureCtrl = {
 
         // --- RESALTAR COMPARTIR SI HAY SELECCIÓN (HYPER-HIGHLIGHT) ---
         if (this.btnGlobalShare) {
-            if (this.isSelectionMode && this.selectedIds.size > 0) {
-                this.btnGlobalShare.style.backgroundColor = 'var(--primary)';
-                this.btnGlobalShare.style.color = '#000';
-                this.btnGlobalShare.style.boxShadow = '0 0 20px var(--primary)';
-                this.btnGlobalShare.style.opacity = '1';
-                this.btnGlobalShare.classList.remove('text-white/30');
-            } else {
+            if ((this.isSelectionMode && this.selectedIds.size > 0) || this.selectedCardId) {
+                // Activo
+                this.btnGlobalShare.classList.remove('text-white/30', 'bg-white/5', 'border', 'border-white/5');
+                this.btnGlobalShare.classList.add('text-primary', 'bg-primary/10');
+                
+                // Limpiar estilos en línea en caso de que vinieran de una selección múltiple previa
                 this.btnGlobalShare.style.backgroundColor = '';
                 this.btnGlobalShare.style.color = '';
                 this.btnGlobalShare.style.boxShadow = '';
-                this.btnGlobalShare.style.opacity = '';
-                this.btnGlobalShare.classList.add('text-white/30');
+                
+                if (this.isSelectionMode) {
+                    // Modo Múltiple: Fondo neón brillante completo
+                    this.btnGlobalShare.style.backgroundColor = 'var(--primary)';
+                    this.btnGlobalShare.style.color = '#000';
+                    this.btnGlobalShare.style.boxShadow = '0 0 20px var(--primary)';
+                }
+            } else {
+                // Apagado
+                this.btnGlobalShare.style.backgroundColor = '';
+                this.btnGlobalShare.style.color = '';
+                this.btnGlobalShare.style.boxShadow = '';
+                this.btnGlobalShare.classList.remove('text-primary', 'bg-primary/10');
+                this.btnGlobalShare.classList.add('text-white/30', 'bg-white/5', 'border', 'border-white/5');
             }
         }
     },
