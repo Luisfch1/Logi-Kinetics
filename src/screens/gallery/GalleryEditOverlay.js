@@ -63,7 +63,7 @@ export const GalleryEditOverlay = {
                 <div class="max-w-md mx-auto grid grid-cols-[auto_1fr_auto] items-center gap-4 bg-black/40 border border-white/5 p-4 rounded-[2.5rem] shadow-2xl pointer-events-auto backdrop-blur-md animate-in slide-in-from-bottom duration-700">
                     
                     <!-- 1. COMPARTIR -->
-                    <button id="edit-btn-share" class="w-14 h-14 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-white/30 active:bg-primary/10 transition-colors">
+                    <button id="edit-btn-share" class="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary active:scale-90 transition-transform">
                         <span class="material-symbols-outlined text-xl">share</span>
                     </button>
 
@@ -122,8 +122,20 @@ export const GalleryEditOverlay = {
             this.hide();
         };
 
-        btnShare.onclick = () => {
-            if (callbacks.onShare) callbacks.onShare(this.activeItem.id);
+        btnShare.onclick = async () => {
+            if (callbacks.onShare) {
+                const originalHtml = btnShare.innerHTML;
+                btnShare.innerHTML = '<span class="material-symbols-outlined text-xl animate-spin">sync</span>';
+                btnShare.style.pointerEvents = 'none';
+                try {
+                    await callbacks.onShare(this.activeItem.id);
+                } catch (e) {
+                    console.error("Error compartiendo desde overlay:", e);
+                } finally {
+                    btnShare.innerHTML = originalHtml;
+                    btnShare.style.pointerEvents = 'auto';
+                }
+            }
         };
 
         btnItem.onclick = () => {
