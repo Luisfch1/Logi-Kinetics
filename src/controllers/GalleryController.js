@@ -213,6 +213,11 @@ class GalleryController {
         let pressTimer;
         let isLongPress = false;
 
+        // Prevenir conflictos con el menú nativo
+        this.container.oncontextmenu = (e) => {
+            if (e.target.closest('.gallery-card-item')) e.preventDefault();
+        };
+
         this.container.onpointerdown = (e) => {
             const card = e.target.closest('.gallery-card-item');
             if (!card) return;
@@ -226,13 +231,17 @@ class GalleryController {
                 if (navigator.vibrate) navigator.vibrate(50);
                 this.isSelectionMode = true;
                 this.toggleSelection(card.dataset.id);
-            }, 500);
+            }, 600);
         };
 
         this.container.onpointermove = (e) => {
             if (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10) {
                 clearTimeout(pressTimer);
             }
+        };
+
+        this.container.onpointercancel = (e) => {
+            clearTimeout(pressTimer);
         };
 
         this.container.onpointerup = (e) => {

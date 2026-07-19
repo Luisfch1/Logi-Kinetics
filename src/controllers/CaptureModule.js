@@ -173,7 +173,9 @@ export const CaptureCtrl = {
         grid.onpointermove = null;
         grid.onpointerup = null;
         grid.onpointercancel = null;
-        grid.oncontextmenu = (e) => e.preventDefault();
+        grid.oncontextmenu = (e) => {
+            if (e.target.closest('.capture-card-item')) e.preventDefault();
+        };
 
         let timer = null;
         let isLong = false;
@@ -198,14 +200,14 @@ export const CaptureCtrl = {
                 if (hasMoved) return;
                 isLong = true;
                 this.activateSelectionMode(currentId);
-            }, 450); 
+            }, 600); 
         };
 
         grid.onpointermove = (e) => {
             if (!currentId || hasMoved) return;
             const dx = Math.abs(e.clientX - startX);
             const dy = Math.abs(e.clientY - startY);
-            if (dx > 15 || dy > 15) {
+            if (dx > 10 || dy > 10) {
                 hasMoved = true;
                 clearTimeout(timer);
             }
