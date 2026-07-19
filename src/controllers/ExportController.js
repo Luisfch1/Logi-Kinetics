@@ -494,12 +494,6 @@ export const ExportModule = {
         const projectName = (project.name || "S/N").toUpperCase();
         page.drawText(projectName, { x: m + 50, y: h - 35, size: 11, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
         page.drawText(`REGISTRO FOTOGRÁFICO: ${dateLabel.toUpperCase()}`, { x: m + 50, y: h - 48, size: 7, font: fontNormal, color: rgb(0.4, 0.4, 0.4) });
-
-        if (logoImg) {
-            const lW = 40;
-            const lH = (logoImg.height / logoImg.width) * lW;
-            page.drawImage(logoImg, { x: w - m - lW, y: h - 55, width: lW, height: lH });
-        }
     },
 
     async _generateTechnicalReport(project, filtered, fileName, customResizeWidth) {
@@ -726,12 +720,15 @@ export const ExportModule = {
                 // 1. Aplicar Logo si se solicita y existe
                 if (includeLogo && this.config.logo) {
                     try {
-                        const logoImg = await new Promise((resLogo, rejLogo) => {
-                            const li = new Image();
-                            li.onload = () => resLogo(li);
-                            li.onerror = rejLogo;
-                            li.src = this.config.logo.startsWith('data:') ? this.config.logo : 'data:image/png;base64,' + this.config.logo;
-                        });
+                        let logoSrc = this.config.logo;
+                        if (!logoSrc.startsWith('data:')) {
+                            const b = await LogiNative.getBlobBytes(logoSrc);
+                            if (b) {
+                                const blob = new Blob([b], { type: 'image/png' });
+                                logoSrc = URL.createObjectURL(blob);
+                            }
+                        }
+                        const logoImg = await this._loadImage(logoSrc);
                         
                         const logoSize = Math.floor(width * 0.18); // 18% del ancho
                         const logoH = Math.floor((logoSize / logoImg.width) * logoImg.height);
@@ -923,29 +920,7 @@ export const ExportModule = {
             }
 
             // --- HEADER (Usando Tabla para máxima estabilidad) ---
-            let logoBytes = null;
-            if (this.config.logo) {
-                if (this.config.logo.startsWith('data:')) {
-                    const base64 = this.config.logo.split(',')[1];
-                    logoBytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-                } else {
-                    logoBytes = await LogiNative.getBlobBytes(this.config.logo);
-                }
-            }
-            let headerLogoContent = [];
-            if (logoBytes) {
-                headerLogoContent.push(new Paragraph({
-                    children: [
-                        new ImageRun({
-                            data: logoBytes,
-                            transformation: { width: 45, height: 45 },
-                            docProperties: { id: ++drawingId, name: `Logo ${drawingId}` }
-                        }),
-                    ],
-                    alignment: AlignmentType.RIGHT,
-                }));
-            }
-
+            // El usuario indicó que el logo solo va en las fotos, no en el encabezado
             const headerTable = new Table({
                 width: { size: 10500, type: WidthType.DXA },
                 borders: {
@@ -957,14 +932,21 @@ export const ExportModule = {
                     insideVertical: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                 },
                 rows: [
-                    // Fila única: Título y Logo
+                    // Fila única: Título
                     new TableRow({
                         children: [
                             new TableCell({
                                 children: [
                                     new Paragraph({
                                         children: [
-                                            new TextRun({ text: "LOGI", bold: true, color: "cafd00", size: 36 }), 
+                                            // Texto LOGI con fondo gris oscuro para mayor contraste (como pidió el usuario)
+                                            new TextRun({ 
+                                                text: " LOGI ", 
+                                                bold: true, 
+                                                color: "cafd00", 
+                                                shading: { type: ShadingType.CLEAR, fill: "333333" },
+                                                size: 36 
+                                            }), 
                                             new TextRun({ text: `    PROYECTO: ${(project.name || "").toUpperCase()}`, bold: true, color: "1A1A1A", size: 22 }),
                                         ],
                                         spacing: { before: 200 }
@@ -977,24 +959,13 @@ export const ExportModule = {
                                         spacing: { after: 100 },
                                     }),
                                 ],
-                                width: { size: 7350, type: WidthType.DXA },
+                                width: { size: 10500, type: WidthType.DXA },
                                 borders: {
                                     top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                                     bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                                     left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                                     right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                                 }
-                            }),
-                            new TableCell({
-                                children: headerLogoContent.length > 0 ? headerLogoContent : [new Paragraph({ text: "" })],
-                                width: { size: 3150, type: WidthType.DXA },
-                                borders: {
-                                    top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
-                                    bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
-                                    left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
-                                    right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
-                                },
-                                verticalAlign: VerticalAlign.CENTER
                             }),
                         ],
                     }),
@@ -1139,26 +1110,8 @@ export const ExportModule = {
             const emissionDate = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase();
 
             // --- HEADER V2 (Tabla de alta fidelidad) ---
-            let logoBytes = null;
-            if (this.config.logo) {
-                if (this.config.logo.startsWith('data:')) {
-                    const base64 = this.config.logo.split(',')[1];
-                    logoBytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-                } else {
-                    logoBytes = await LogiNative.getBlobBytes(this.config.logo);
-                }
-            }
-            let logoCellChildren = [];
-            if (logoBytes) {
-                logoCellChildren.push(new Paragraph({
-                    children: [new ImageRun({ 
-                        data: logoBytes, 
-                        transformation: { width: 50, height: 50 },
-                        docProperties: { id: ++drawingId, name: `Logo ${drawingId}` }
-                    })],
-                    alignment: AlignmentType.CENTER,
-                }));
-            }
+            // El usuario indicó que el logo no va en el formato
+            let logoCellChildren = [new Paragraph("")];
 
             const headerTable = new Table({
                 width: { size: 10500, type: WidthType.DXA },
@@ -1177,7 +1130,15 @@ export const ExportModule = {
                             new TableCell({
                                 children: [
                                     new Paragraph({
-                                        children: [new TextRun({ text: "LOGI", bold: true, size: 48, color: "cafd00" })],
+                                        children: [
+                                            new TextRun({ 
+                                                text: " LOGI ", 
+                                                bold: true, 
+                                                size: 48, 
+                                                color: "cafd00",
+                                                shading: { type: ShadingType.CLEAR, fill: "333333" }
+                                            })
+                                        ],
                                         spacing: { before: 200 }
                                     }),
                                     new Paragraph({
@@ -1194,7 +1155,7 @@ export const ExportModule = {
                                 }
                             }),
                             new TableCell({
-                                children: logoCellChildren.length > 0 ? logoCellChildren : [new Paragraph("")],
+                                children: logoCellChildren,
                                 width: { size: 2100, type: WidthType.DXA },
                                 verticalAlign: VerticalAlign.CENTER,
                                 borders: {
