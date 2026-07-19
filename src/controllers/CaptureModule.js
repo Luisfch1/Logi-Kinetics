@@ -1,5 +1,7 @@
 import { State } from '../core/state.js';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Capacitor } from '@capacitor/core';
 import { LogiNative } from '../core/capacitor-bridge.js';
 import { PortraitCardItem } from '../screens/capture/portrait/PortraitCardItem.js';
 import { LandscapeCardItem } from '../screens/capture/landscape/LandscapeCardItem.js';
@@ -250,24 +252,57 @@ export const CaptureCtrl = {
         try {
             const res = await Camera.pickImages({ quality: 60, limit: 20 });
             console.log("[CaptureCtrl] Camera.pickImages completed. Count:", res.photos?.length);
+            if (!res.photos || res.photos.length === 0) return;
+
             for (const p of res.photos) {
-                console.log("[CaptureCtrl] Reading photo:", p.webPath);
-                const base64 = await this.readAsBase64(p.webPath);
-                await this.processImage(base64);
+                try {
+                    const base64 = await this.readAsBase64(p);
+                    if (base64) await this.processImage(base64);
+                } catch (photoErr) {
+                    console.error("[CaptureCtrl] Error procesando foto individual:", photoErr);
+                }
             }
         } catch (e) {
             console.error("[CaptureCtrl] pickFromGallery() Error:", e);
         }
     },
 
-    async readAsBase64(path) {
-        const res = await fetch(path);
-        const b = await res.blob();
-        return new Promise(r => {
-            const reader = new FileReader();
-            reader.onload = () => r(reader.result.split(',')[1]);
-            reader.readAsDataURL(b);
-        });
+    /**
+     * Convierte una foto de Capacitor a base64 puro.
+     * Android API 33+ ya no permite fetch() sobre paths nativos desde WebView.
+     * Se usa Filesystem.readFile como fallback robusto.
+     */
+    async readAsBase64(photo) {
+        // Intento 1: path nativo via Filesystem (el más robusto en Android moderno)
+        if (LogiNative.isNative() && photo.path) {
+            try {
+                const file = await Filesystem.readFile({ path: photo.path });
+                // file.data ya viene en base64 puro
+                return typeof file.data === 'string' ? file.data : null;
+            } catch (nativeErr) {
+                console.warn("[CaptureCtrl] Filesystem.readFile falló, intentando webPath:", nativeErr);
+            }
+        }
+
+        // Intento 2: webPath con fetch (funciona en web/emulador y Android antiguo)
+        const webPath = photo.webPath || photo;
+        if (webPath && typeof webPath === 'string') {
+            try {
+                const response = await fetch(webPath);
+                const blob = await response.blob();
+                return new Promise(r => {
+                    const reader = new FileReader();
+                    reader.onload = () => r(reader.result.split(',')[1]);
+                    reader.onerror = () => r(null);
+                    reader.readAsDataURL(blob);
+                });
+            } catch (fetchErr) {
+                console.warn("[CaptureCtrl] fetch falló:", fetchErr);
+            }
+        }
+
+        console.error("[CaptureCtrl] readAsBase64: No se pudo leer la foto.", photo);
+        return null;
     },
 
     async processImage(base64) {
