@@ -12,10 +12,11 @@ export const GalleryEditOverlay = {
     onSave: null,
 
     show(item, callbacks) {
+        this.hide(); // Limpiar si existe primero!
+        
         this.activeItem = item;
         this.onSave = callbacks.onSave;
-        
-        this.hide(); // Limpiar si existe (sin esperar al timeout de remoción)
+
         const old = document.getElementById('gallery-edit-overlay');
         if (old) old.remove();
 
