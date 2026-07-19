@@ -807,7 +807,28 @@ export const LogiNative = {
                 tx.objectStore(STORE_NAME).put(base64DataURL, `report_${pid}_${filename}`);
             }
 
-            // 3. Descargar en PC
+            // 3. Intentar compartir mediante Web Share API (Móvil PWA)
+            if (navigator.share && navigator.canShare) {
+                try {
+                    const mimeType = filename.endsWith('.docx') 
+                        ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
+                        : (filename.endsWith('.pdf') ? 'application/pdf' : blob.type);
+                        
+                    const file = new File([blob], filename, { type: mimeType });
+                    if (navigator.canShare({ files: [file] })) {
+                        await navigator.share({
+                            files: [file],
+                            title: 'Reporte Logi',
+                            text: filename
+                        });
+                        return; // Compartido con éxito, no descargamos
+                    }
+                } catch (e) {
+                    console.warn("Web Share API falló o se canceló:", e);
+                }
+            }
+
+            // 4. Fallback a Descargar en PC o navegadores sin soporte
             const url = URL.createObjectURL(blob);
             const a = document.getElementById("hidden-download-link") || document.createElement("a");
             a.href = url;
