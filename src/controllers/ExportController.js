@@ -789,29 +789,8 @@ export const ExportModule = {
                     ctx.fillText(dateStr.toUpperCase(), tx, ty);
                 }
 
-                // 3. Etiqueta de Índice de Foto (Como en el PDF)
-                if (photoIndex !== null) {
-                    const badgeSize = Math.max(40, Math.floor(width * 0.08));
-                    
-                    // Compensación geométrica: el visor de Word estira horizontalmente las fotos
-                    // de aspecto 4:3 a ~1.65. Compensamos pre-deformando el recuadro para que quede cuadrado al renderizar.
-                    const targetAspect = 1.65;
-                    const canvasAspect = width / height;
-                    const compensation = canvasAspect / targetAspect;
-                    
-                    const badgeW = badgeSize * compensation;
-                    const badgeH = badgeSize;
-                    
-                    ctx.fillStyle = '#cafd00'; // Color primario Logi
-                    ctx.fillRect(0, 0, badgeW, badgeH);
-                    
-                    ctx.fillStyle = '#000000';
-                    const badgeFontSize = Math.floor(badgeSize * 0.6);
-                    ctx.font = `bold ${badgeFontSize}px sans-serif`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(photoIndex.toString(), badgeW / 2, badgeH / 2 + (badgeFontSize * 0.05));
-                }
+                // La numeración en las fotos se ha removido a petición del usuario
+                // ya que se duplica con la numeración del layout en Word/PDF.
 
                 canvas.toBlob((resultBlob) => {
                     const reader = new FileReader();
@@ -944,7 +923,7 @@ export const ExportModule = {
                                                 text: " LOGI ", 
                                                 bold: true, 
                                                 color: "cafd00", 
-                                                shading: { type: ShadingType.CLEAR, fill: "333333" },
+                                                shading: { type: ShadingType.CLEAR, fill: "001F3F" },
                                                 size: 36 
                                             }), 
                                             new TextRun({ text: `    PROYECTO: ${(project.name || "").toUpperCase()}`, bold: true, color: "1A1A1A", size: 22 }),
@@ -1136,7 +1115,7 @@ export const ExportModule = {
                                                 bold: true, 
                                                 size: 48, 
                                                 color: "cafd00",
-                                                shading: { type: ShadingType.CLEAR, fill: "333333" }
+                                                shading: { type: ShadingType.CLEAR, fill: "001F3F" }
                                             })
                                         ],
                                         spacing: { before: 200 }
