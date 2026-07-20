@@ -243,9 +243,13 @@ html, body {
     box-shadow: 0 2px 8px rgba(0,0,0,0.02) !important;
 }
 
-.light-mode #gallery-search::placeholder {
-    color: #94a3b8 !important;
+.light-mode #gallery-search::placeholder,
+.light-mode #input-desc::placeholder,
+.light-mode [id*="desc-"]::placeholder,
+.light-mode input::placeholder {
+    color: #64748b !important;
     opacity: 1 !important;
+    -webkit-text-fill-color: #64748b !important;
 }
 
 .light-mode #current-activity,
@@ -261,9 +265,27 @@ html, body {
 
 .light-mode .text-primary .material-symbols-outlined,
 .light-mode .material-symbols-outlined.text-primary,
-.light-mode #btn-capture .material-symbols-outlined,
 .light-mode #gallery-selection-bar .text-primary {
     color: var(--primary) !important;
+}
+
+/* FIX CRÍTICO: El disparador central (#btn-capture) SIEMPRE tiene fondo primary (naranja/neón),
+   por lo que su ícono DEBE ser negro (#000000) en ambos modos para que no desaparezca en modo claro */
+#btn-capture .material-symbols-outlined,
+.light-mode #btn-capture .material-symbols-outlined {
+    color: #000000 !important;
+}
+
+/* Fijar visibilidad del botón de micrófono en modo claro */
+.light-mode #btn-mic,
+.light-mode #btn-mic .material-symbols-outlined {
+    color: #000000 !important;
+}
+
+/* Mejorar contraste de chevrons e íconos atenuados en modo claro */
+.light-mode .opacity-30,
+.light-mode .opacity-20 {
+    opacity: 0.65 !important;
 }
 
 /* 7. Realce de Fotos en Galería (Adiós al efecto lavado) */
