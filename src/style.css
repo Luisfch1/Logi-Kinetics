@@ -405,21 +405,21 @@ html, body {
 
 /* --- ESTILOS DE BOTONES TOGGLE (MODO OSCURO Y MODO CLARO) --- */
 
-/* Track Desactivado (Modo Oscuro) */
+/* Track Desactivado (Modo Oscuro Original) */
 .toggle-switch-track.is-inactive {
-    background-color: rgba(255, 255, 255, 0.12) !important;
-    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border: none !important;
 }
 .toggle-switch-track.is-inactive .toggle-switch-knob {
-    background-color: #ffffff !important;
-    opacity: 0.7 !important;
+    background-color: #000000 !important;
+    opacity: 1 !important;
 }
 
-/* Track Activado (Modo Oscuro) */
+/* Track Activado (Modo Oscuro Original) */
 .toggle-switch-track.is-active {
     background-color: var(--primary) !important;
     box-shadow: 0 0 12px var(--primary-glow) !important;
-    border: 1px solid var(--primary) !important;
+    border: none !important;
 }
 .toggle-switch-track.is-active .toggle-switch-knob {
     background-color: #000000 !important;
