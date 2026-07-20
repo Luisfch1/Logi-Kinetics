@@ -676,7 +676,18 @@ export const LogiNative = {
             }
             return new Promise(r => {
                 const tx = db.transaction(STORE_NAME, 'readwrite');
-                tx.objectStore(STORE_NAME).put(fullBase64, filename);
+                const store = tx.objectStore(STORE_NAME);
+
+                const cleanName = String(filename).trim();
+                const noExt = cleanName.replace(/\.jpg$/i, '');
+                const noCap = cleanName.replace(/^cap_/, '');
+                const rawId = noCap.replace(/\.jpg$/i, '');
+
+                store.put(fullBase64, cleanName);
+                if (noExt !== cleanName) store.put(fullBase64, noExt);
+                if (noCap !== cleanName) store.put(fullBase64, noCap);
+                if (rawId !== cleanName) store.put(fullBase64, `${rawId}.jpg`);
+
                 tx.oncomplete = () => {
                     const dt = Math.round(performance.now() - t0);
                     DebugLogger.info('BRIDGE', `storeBlob OK (IndexedDB): ${filename} en ${dt}ms (${payloadKB} KB)`);
@@ -708,6 +719,7 @@ export const LogiNative = {
     },
 
     getBlobUri: async (filename) => {
+        if (!filename) return null;
         const t0 = performance.now();
         if (!LogiNative.isNative()) {
             const db = await getDB();
@@ -717,32 +729,71 @@ export const LogiNative = {
             }
             return new Promise(r => {
                 const tx = db.transaction(STORE_NAME, 'readonly');
-                const req = tx.objectStore(STORE_NAME).get(filename);
-                req.onsuccess = () => {
-                    const res = req.result;
-                    if (!res) {
-                        DebugLogger.warn('BRIDGE', `getBlobUri Web: Blob no encontrado en IndexedDB (${filename})`);
+                const store = tx.objectStore(STORE_NAME);
+
+                const cleanName = String(filename).trim();
+                const noExt = cleanName.replace(/\.jpg$/i, '');
+                const noCap = cleanName.replace(/^cap_/, '');
+                const rawId = noCap.replace(/\.jpg$/i, '');
+
+                const candidates = Array.from(new Set([cleanName, noExt, noCap, rawId, `${rawId}.jpg`, `cap_${rawId}.jpg`]));
+
+                let candidateIdx = 0;
+                const tryNext = () => {
+                    if (candidateIdx >= candidates.length) {
+                        // Búsqueda profunda por clave en IndexedDB
+                        const allKeysReq = store.getAllKeys();
+                        allKeysReq.onsuccess = () => {
+                            const keys = allKeysReq.result || [];
+                            const matchedKey = keys.find(k => typeof k === 'string' && (k.includes(rawId) || (rawId && k.includes(rawId))));
+                            if (matchedKey) {
+                                const finalReq = store.get(matchedKey);
+                                finalReq.onsuccess = () => r(finalReq.result || null);
+                                finalReq.onerror = () => r(null);
+                            } else {
+                                DebugLogger.warn('BRIDGE', `getBlobUri Web: Blob no encontrado en IndexedDB (${filename})`);
+                                r(null);
+                            }
+                        };
+                        allKeysReq.onerror = () => r(null);
+                        return;
                     }
-                    r(res || null);
+
+                    const key = candidates[candidateIdx++];
+                    const req = store.get(key);
+                    req.onsuccess = () => {
+                        if (req.result) {
+                            r(req.result);
+                        } else {
+                            tryNext();
+                        }
+                    };
+                    req.onerror = () => tryNext();
                 };
-                req.onerror = (e) => {
-                    DebugLogger.error('BRIDGE', `getBlobUri Web Error para ${filename}:`, { error: e });
-                    r(null);
-                };
+
+                tryNext();
             });
         }
         try {
-            const path = `${DATA_DIR}/blobs/${filename}`;
+            const cleanName = String(filename).trim();
+            const noExt = cleanName.replace(/\.jpg$/i, '');
+            const noCap = cleanName.replace(/^cap_/, '');
+            const rawId = noCap.replace(/\.jpg$/i, '');
+            const candidates = Array.from(new Set([cleanName, `${cleanName}.jpg`, `${rawId}.jpg`, cleanName.replace('.jpg', '')]));
 
-            // INTENTO 1: Ubicación Primaria (Data)
-            const res = await Filesystem.getUri({ path, directory: PRIMARY_DIR }).catch(() => null);
-            if (res) return Capacitor.convertFileSrc(res.uri);
+            for (const c of candidates) {
+                const path = `${DATA_DIR}/blobs/${c}`;
 
-            // INTENTO 2: Scavenger Fallback (Documents - v189.2)
-            const legacyRes = await Filesystem.getUri({ path, directory: LEGACY_DIR }).catch(() => null);
-            if (legacyRes) {
-                DebugLogger.warn('BRIDGE', `Scavenger encontró blob en LEGACY: ${filename}`);
-                return Capacitor.convertFileSrc(legacyRes.uri);
+                // INTENTO 1: Ubicación Primaria (Data)
+                const res = await Filesystem.getUri({ path, directory: PRIMARY_DIR }).catch(() => null);
+                if (res) return Capacitor.convertFileSrc(res.uri);
+
+                // INTENTO 2: Scavenger Fallback (Documents)
+                const legacyRes = await Filesystem.getUri({ path, directory: LEGACY_DIR }).catch(() => null);
+                if (legacyRes) {
+                    DebugLogger.warn('BRIDGE', `Scavenger encontró blob en LEGACY: ${c}`);
+                    return Capacitor.convertFileSrc(legacyRes.uri);
+                }
             }
 
             DebugLogger.warn('BRIDGE', `getBlobUri Nativo: Archivo no existe en Data ni Documents (${filename})`);

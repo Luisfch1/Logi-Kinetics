@@ -117,10 +117,17 @@ export const BackupModule = {
 
             for (const it of items) {
                 this._notifyProgress(count, total, `Empacando fotos... (${count}/${total})`);
-                const base64 = await LogiNative.readBlobAsBase64(it.filename);
+                const base64 = (await LogiNative.readBlobAsBase64(it.filename)) || 
+                               (await LogiNative.readBlobAsBase64(it.id)) || 
+                               (await LogiNative.readBlobAsBase64(`${it.id}.jpg`)) || 
+                               it._tempImageSrc || 
+                               it.base64;
                 if (base64) {
-                    const rawData = base64.split(',')[1];
+                    const rawData = base64.includes(',') ? base64.split(',')[1] : base64;
                     photoFolder.file(`${it.id}.jpg`, rawData, { base64: true });
+                    photoFolder.file(it.filename, rawData, { base64: true });
+                    zip.file(`photos/${it.filename}`, rawData, { base64: true });
+                    zip.file(`photos/${it.id}.jpg`, rawData, { base64: true });
                 }
                 count++;
             }
@@ -186,7 +193,11 @@ export const BackupModule = {
 
             for (const it of items) {
                 this._notifyProgress(count, total, `Empacando evidencias... (${count}/${total})`);
-                const base64 = await LogiNative.readBlobAsBase64(it.filename);
+                const base64 = (await LogiNative.readBlobAsBase64(it.filename)) || 
+                               (await LogiNative.readBlobAsBase64(it.id)) || 
+                               (await LogiNative.readBlobAsBase64(`${it.id}.jpg`)) || 
+                               it._tempImageSrc || 
+                               it.base64;
                 if (base64) {
                     const parts = base64.split(',');
                     const rawData = parts.length > 1 ? parts[1] : parts[0];
@@ -195,6 +206,9 @@ export const BackupModule = {
                     else if (parts[0].includes('image/webp')) ext = 'webp';
                     
                     photoFolder.file(`${it.id}.${ext}`, rawData, { base64: true });
+                    photoFolder.file(`${it.filename}`, rawData, { base64: true });
+                    zip.file(`photos/${it.filename}`, rawData, { base64: true });
+                    zip.file(`photos/${it.id}.jpg`, rawData, { base64: true });
                 }
                 count++;
             }
@@ -251,10 +265,17 @@ export const BackupModule = {
             for (const it of State._allItems) {
                 this._notifyProgress(count, total, `Procesando fotos totales... (${count}/${total})`);
                 const pid = it.projectId || 'unknown';
-                const base64 = await LogiNative.readBlobAsBase64(it.filename);
+                const base64 = (await LogiNative.readBlobAsBase64(it.filename)) || 
+                               (await LogiNative.readBlobAsBase64(it.id)) || 
+                               (await LogiNative.readBlobAsBase64(`${it.id}.jpg`)) || 
+                               it._tempImageSrc || 
+                               it.base64;
                 if (base64) {
-                    const rawData = base64.split(',')[1];
+                    const rawData = base64.includes(',') ? base64.split(',')[1] : base64;
                     zip.file(`photos/${pid}/${it.id}.jpg`, rawData, { base64: true });
+                    zip.file(`photos/${pid}/${it.filename}`, rawData, { base64: true });
+                    zip.file(`photos/${it.filename}`, rawData, { base64: true });
+                    zip.file(`photos/${it.id}.jpg`, rawData, { base64: true });
                 }
                 count++;
             }
@@ -401,6 +422,7 @@ export const BackupModule = {
         }
 
         // v190.0: Indexación Relámpago del ZIP (Solo si hay ZIP)
+        // Indexación Ultra-Flexible del ZIP
         const filesIndex = {};
         if (zip) {
             this._notifyProgress(0, 100, "Indexando fotos del respaldo...");
@@ -408,7 +430,13 @@ export const BackupModule = {
             for (const key of allZipKeys) {
                 if (key.includes("__MACOSX") || key.endsWith("/")) continue;
                 const baseName = key.split('/').pop().toLowerCase();
+                const nameNoExt = baseName.replace(/\.[^/.]+$/, "");
+                const cleanId = baseName.replace(/^cap_/, '').replace(/\.[^/.]+$/, "");
+                
                 filesIndex[baseName] = key;
+                filesIndex[nameNoExt] = key;
+                filesIndex[cleanId] = key;
+                filesIndex[key.toLowerCase()] = key;
             }
         }
 
@@ -437,9 +465,10 @@ export const BackupModule = {
                 if (zip) {
                     const targetFile = cleanItem.filename.toLowerCase();
                     const targetIdFile = `${cleanItem.id}.jpg`.toLowerCase();
-                    let zipKey = filesIndex[targetFile];
-                    if (!zipKey) zipKey = filesIndex[targetIdFile];
-                    
+                    const targetIdNoExt = cleanItem.id.toLowerCase();
+                    const targetCleanId = cleanItem.id.replace(/^cap_/, '').toLowerCase();
+
+                    let zipKey = filesIndex[targetFile] || filesIndex[targetIdFile] || filesIndex[targetIdNoExt] || filesIndex[targetCleanId];
                     const photoFile = zipKey ? zip.file(zipKey) : null;
                     let photoLoaded = false;
 
@@ -449,6 +478,8 @@ export const BackupModule = {
                             const base64 = await photoFile.async("base64");
                             if (base64 && base64.trim().length > 0) {
                                 await LogiNative.storeBlob(cleanItem.filename, base64);
+                                await LogiNative.storeBlob(`${cleanItem.id}.jpg`, base64);
+                                await LogiNative.storeBlob(cleanItem.id, base64);
                                 photoLoaded = true;
                             }
                         }
@@ -476,6 +507,7 @@ export const BackupModule = {
                                         reader.readAsDataURL(blobData);
                                     });
                                     await LogiNative.storeBlob(cleanItem.filename, base64);
+                                    await LogiNative.storeBlob(`${cleanItem.id}.jpg`, base64);
                                     photoLoaded = true;
                                     console.log(`[Backup Adaptativo] Foto ${cleanItem.id} rescatada localmente desde DB Legacy`);
                                 }
