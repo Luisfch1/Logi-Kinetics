@@ -8,6 +8,8 @@ import { LandscapeCardItem } from '../screens/capture/landscape/LandscapeCardIte
 import { CaptureDialog } from '../screens/capture/CaptureDialog.js';
 import { ItemSelector } from '../screens/capture/ItemSelector.js';
 import { SpeechRecognition } from '@capacitor-community/speech-recognition';
+import { ImageCompressor } from '../utils/ImageCompressor.js';
+import { DebugLogger } from '../utils/DebugLogger.js';
 
 export const CaptureCtrl = {
     selectedCardId: null,
@@ -235,6 +237,7 @@ export const CaptureCtrl = {
     },
 
     async capture() {
+        DebugLogger.event('CAMERA', 'Iniciando captura de cámara...');
         try {
             if (!LogiNative.isNative()) {
                 // PWA/Web: Usar input file nativo con capture (abre cámara del SO directamente)
@@ -242,26 +245,35 @@ export const CaptureCtrl = {
             }
             // Capacitor Nativo: API directa
             const photo = await Camera.getPhoto({
-                quality: 60,
+                quality: 75,
                 resultType: CameraResultType.Base64,
                 source: CameraSource.Camera
             });
-            console.log("[CaptureCtrl] Camera.getPhoto completed. Base64 length:", photo.base64String?.length);
-            await this.processImage(photo.base64String);
+            DebugLogger.info('CAMERA', `Camera.getPhoto completado. Longitud base64: ${photo.base64String?.length}`);
+            if (photo.base64String) {
+                await this.processImage(photo.base64String);
+            } else {
+                DebugLogger.warn('CAMERA', 'Camera.getPhoto retornó respuesta sin base64String');
+            }
         } catch (e) {
-            console.error("[CaptureCtrl] capture() Error:", e);
+            if (e.message && (e.message.includes('cancelled') || e.message.includes('User cancelled'))) {
+                DebugLogger.info('CAMERA', 'Captura cancelada por el usuario');
+            } else {
+                DebugLogger.error('CAMERA', `Error en capture(): ${e.message}`, { error: e });
+            }
         }
     },
 
     async pickFromGallery() {
+        DebugLogger.event('CAMERA', 'Iniciando selección desde galería...');
         try {
             if (!LogiNative.isNative()) {
                 // PWA/Web: Usar input file nativo multi-selección
                 return this._pickFileNative('gallery');
             }
             // Capacitor Nativo: API directa
-            const res = await Camera.pickImages({ quality: 60, limit: 20 });
-            console.log("[CaptureCtrl] Camera.pickImages completed. Count:", res.photos?.length);
+            const res = await Camera.pickImages({ quality: 75, limit: 20 });
+            DebugLogger.info('CAMERA', `Camera.pickImages completado. Fotos seleccionadas: ${res.photos?.length || 0}`);
             if (!res.photos || res.photos.length === 0) return;
 
             for (const p of res.photos) {
@@ -269,11 +281,15 @@ export const CaptureCtrl = {
                     const base64 = await this._readCapacitorPhoto(p);
                     if (base64) await this.processImage(base64);
                 } catch (photoErr) {
-                    console.error("[CaptureCtrl] Error procesando foto individual:", photoErr);
+                    DebugLogger.error('CAMERA', `Error procesando foto individual de galería: ${photoErr.message}`, { photoErr });
                 }
             }
         } catch (e) {
-            console.error("[CaptureCtrl] pickFromGallery() Error:", e);
+            if (e.message && (e.message.includes('cancelled') || e.message.includes('User cancelled'))) {
+                DebugLogger.info('CAMERA', 'Selección de galería cancelada por el usuario');
+            } else {
+                DebugLogger.error('CAMERA', `Error en pickFromGallery(): ${e.message}`, { error: e });
+            }
         }
     },
 
@@ -294,18 +310,21 @@ export const CaptureCtrl = {
 
             input.onchange = async (e) => {
                 const files = Array.from(e.target.files || []);
-                console.log(`[CaptureCtrl] _pickFileNative: ${files.length} archivo(s) seleccionado(s)`);
+                DebugLogger.info('CAMERA', `_pickFileNative: ${files.length} archivo(s) seleccionado(s)`);
                 for (const file of files) {
                     try {
-                        const base64 = await this._fileToBase64(file);
-                        if (base64) await this.processImage(base64);
+                        const compressed = await ImageCompressor.compress(file, 1400, 0.75);
+                        if (compressed.base64) await this.processImage(compressed.base64, true);
                     } catch (err) {
-                        console.error("[CaptureCtrl] Error procesando archivo:", err);
+                        DebugLogger.error('CAMERA', `Error procesando archivo nativo: ${err.message}`, { err });
                     }
                 }
                 resolve();
             };
-            input.oncancel = () => resolve();
+            input.oncancel = () => {
+                DebugLogger.info('CAMERA', 'Selector de archivos nativo cancelado');
+                resolve();
+            };
             input.click();
         });
     },
@@ -318,11 +337,13 @@ export const CaptureCtrl = {
             const reader = new FileReader();
             reader.onload = () => {
                 const result = reader.result;
-                // Extraer solo la parte base64 sin el prefijo data:image/...;base64,
-                const base64 = result.split(',')[1];
+                const base64 = typeof result === 'string' ? result.split(',')[1] : null;
                 resolve(base64 || null);
             };
-            reader.onerror = () => resolve(null);
+            reader.onerror = (err) => {
+                DebugLogger.error('CAMERA', `_fileToBase64 Error: ${err.message}`);
+                resolve(null);
+            };
             reader.readAsDataURL(file);
         });
     },
@@ -338,7 +359,7 @@ export const CaptureCtrl = {
                 const file = await Filesystem.readFile({ path: photo.path });
                 return typeof file.data === 'string' ? file.data : null;
             } catch (nativeErr) {
-                console.warn("[CaptureCtrl] Filesystem.readFile falló, intentando webPath:", nativeErr);
+                DebugLogger.warn('CAMERA', `Filesystem.readFile falló para photo.path, intentando webPath: ${nativeErr.message}`);
             }
         }
 
@@ -349,19 +370,34 @@ export const CaptureCtrl = {
                 const blob = await response.blob();
                 return this._fileToBase64(blob);
             } catch (fetchErr) {
-                console.warn("[CaptureCtrl] fetch falló:", fetchErr);
+                DebugLogger.warn('CAMERA', `fetch falló para webPath: ${fetchErr.message}`);
             }
         }
 
-        console.error("[CaptureCtrl] _readCapacitorPhoto: No se pudo leer.", photo);
+        DebugLogger.error('CAMERA', '_readCapacitorPhoto: No se pudo leer foto.', photo);
         return null;
     },
 
-    async processImage(base64) {
-        const id = 'cap_' + Date.now();
+    async processImage(rawBase64, isAlreadyCompressed = false) {
+        if (!rawBase64) return;
+        const id = 'cap_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
         const filename = id + '.jpg';
         let act = (document.getElementById('current-activity')?.innerText || 'GENERAL').trim().toUpperCase();
         if (act === 'SELECCIONAR...') act = 'GENERAL';
+
+        DebugLogger.info('CAPTURE', `Procesando imagen ${id} para proyecto ${State.currentProject?.id || 'p_default'}...`);
+
+        // Compresión Inteligente (maxDim = 1400px, JPEG quality = 0.75)
+        let finalBase64 = rawBase64;
+        let compressedSizeKB = (rawBase64.length / 1024).toFixed(1);
+
+        if (!isAlreadyCompressed) {
+            const compressed = await ImageCompressor.compress(rawBase64, 1400, 0.75);
+            if (compressed.base64) {
+                finalBase64 = compressed.base64;
+                compressedSizeKB = compressed.compressedKB;
+            }
+        }
 
         const data = {
             id,
@@ -370,18 +406,25 @@ export const CaptureCtrl = {
             createdAt: Date.now(),
             projectId: State.currentProject?.id || 'p_default',
             filename,
-            _pndate: new Date().toDateString(), // v191.9-OMNIVERSO: Visibilidad inmediata
-            _pnid: State._norm(State.currentProject?.id || 'p_default'), // v191.9-ULTRA: Fix filtrado
-            _pnname: State._norm(State.currentProject?.name || '') // v191.9-ULTRA: Fix filtrado
+            _pndate: new Date().toDateString(),
+            _pnid: State._norm(State.currentProject?.id || 'p_default'),
+            _pnname: State._norm(State.currentProject?.name || '')
         };
 
         // Guardado persistente
-        await LogiNative.storeBlob(filename, base64);
-        await LogiNative.dbPut('items_meta', data);
+        const savedBlob = await LogiNative.storeBlob(filename, finalBase64);
+        if (!savedBlob) {
+            DebugLogger.error('CAPTURE', `Fallo crítico al guardar blob ${filename}`);
+        }
+
+        const savedMeta = await LogiNative.dbPut('items_meta', data);
+        if (!savedMeta) {
+            DebugLogger.error('CAPTURE', `Fallo crítico al guardar metadatos de ${id}`);
+        }
         
-        // Actualización de estado (el suscriptor llamará a syncWithState)
-        data._tempImageSrc = "data:image/jpeg;base64," + base64;
-        console.log(`[CaptureModule] Processing Captured Image: ${id} for Project: ${data.projectId}`);
+        // Actualización de estado
+        data._tempImageSrc = "data:image/jpeg;base64," + finalBase64;
+        DebugLogger.event('CAPTURE', `Foto procesada y registrada: ${id} (${compressedSizeKB} KB)`);
         State.addItem(data);
         this.selectedCardId = id;
 
@@ -394,15 +437,15 @@ export const CaptureCtrl = {
                     controlProjectId: State.currentProject.controlProjectId
                 }).then(success => {
                     if (success) {
-                        console.log(`[CaptureModule] Cloud Sync Completed for ${id}`);
+                        DebugLogger.info('CLOUD', `Sincronización en nube OK para ${id}`);
                     } else {
-                        console.error(`[CaptureModule] Cloud Sync Failed for ${id}`);
+                        DebugLogger.error('CLOUD', `Sincronización en nube falló para ${id}`);
                     }
                 }).catch(err => {
-                    console.error(`[CaptureModule] Cloud Sync Exception for ${id}:`, err);
+                    DebugLogger.error('CLOUD', `Excepción en sincronización nube para ${id}: ${err.message}`);
                 });
             }).catch(err => {
-                console.error(`[CaptureModule] Failed to load SupabaseService:`, err);
+                DebugLogger.error('CLOUD', `Error al cargar SupabaseService: ${err.message}`);
             });
         }
     },

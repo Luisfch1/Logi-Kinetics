@@ -5,6 +5,7 @@ import { Preferences } from '@capacitor/preferences';
 import { Capacitor } from '@capacitor/core';
 import { State } from './state.js';
 import { CaptureDialog } from '../screens/capture/CaptureDialog.js';
+import { DebugLogger } from '../utils/DebugLogger.js';
 
 const PRIMARY_DIR = Directory.Data; // Nexus Shield: Switch to Data for maximum speed (v189)
 const DATA_DIR = 'Logi';
@@ -42,7 +43,18 @@ const _webMeta = {
 };
 
 function saveWebMeta(store) {
-    localStorage.setItem(`logi_web_${store}`, JSON.stringify(_webMeta[store]));
+    if (store === 'items_meta' && Array.isArray(_webMeta.items_meta)) {
+        // Cuarentena Estricta: Garantizar que NUNCA se guarde Base64 en LocalStorage
+        _webMeta.items_meta.forEach(item => {
+            if (item._tempImageSrc) delete item._tempImageSrc;
+            if (item.base64) delete item.base64;
+        });
+    }
+    try {
+        localStorage.setItem(`logi_web_${store}`, JSON.stringify(_webMeta[store]));
+    } catch (e) {
+        DebugLogger.error('STORAGE', `saveWebMeta QuotaExceededError en ${store}: ${e.message}`, { error: e });
+    }
 }
 
 let _dynamicBlobsUri = "";
@@ -651,37 +663,72 @@ export const LogiNative = {
     },
 
     storeBlob: async (filename, base64) => {
+        const t0 = performance.now();
+        const payloadKB = (base64.length / 1024).toFixed(1);
+        DebugLogger.info('BRIDGE', `storeBlob iniciado: ${filename} (${payloadKB} KB)`);
+
         const fullBase64 = base64.includes('data:image') ? base64 : `data:image/jpeg;base64,${base64}`;
         if (!LogiNative.isNative()) {
             const db = await getDB();
-            if (!db) return false;
+            if (!db) {
+                DebugLogger.error('BRIDGE', `storeBlob falló: IndexedDB no disponible para ${filename}`);
+                return false;
+            }
             return new Promise(r => {
                 const tx = db.transaction(STORE_NAME, 'readwrite');
                 tx.objectStore(STORE_NAME).put(fullBase64, filename);
-                tx.oncomplete = () => r(true);
-                tx.onerror = () => r(false);
+                tx.oncomplete = () => {
+                    const dt = Math.round(performance.now() - t0);
+                    DebugLogger.info('BRIDGE', `storeBlob OK (IndexedDB): ${filename} en ${dt}ms (${payloadKB} KB)`);
+                    r(true);
+                };
+                tx.onerror = (err) => {
+                    const dt = Math.round(performance.now() - t0);
+                    DebugLogger.error('BRIDGE', `storeBlob Error (IndexedDB): ${filename} tras ${dt}ms`, { err });
+                    r(false);
+                };
             });
         }
         try {
+            const dtWrite0 = performance.now();
             await withTimeout(Filesystem.writeFile({
                 path: `${DATA_DIR}/blobs/${filename}`,
                 data: base64.replace(/^data:image\/jpeg;base64,/, ''),
                 directory: PRIMARY_DIR,
                 recursive: true
-            }));
+            }), 15000);
+            const dt = Math.round(performance.now() - dtWrite0);
+            DebugLogger.info('BRIDGE', `storeBlob OK (Nativo Filesystem): ${filename} en ${dt}ms (${payloadKB} KB)`);
             return true;
-        } catch (e) { return false; }
+        } catch (e) {
+            const dt = Math.round(performance.now() - t0);
+            DebugLogger.error('BRIDGE', `storeBlob Error/Timeout (${filename}) tras ${dt}ms: ${e.message}`, { error: e, payloadKB });
+            return false;
+        }
     },
 
     getBlobUri: async (filename) => {
+        const t0 = performance.now();
         if (!LogiNative.isNative()) {
             const db = await getDB();
-            if (!db) return null;
+            if (!db) {
+                DebugLogger.warn('BRIDGE', `getBlobUri Web: DB no obtenida para ${filename}`);
+                return null;
+            }
             return new Promise(r => {
                 const tx = db.transaction(STORE_NAME, 'readonly');
                 const req = tx.objectStore(STORE_NAME).get(filename);
-                req.onsuccess = () => r(req.result);
-                req.onerror = () => r(null);
+                req.onsuccess = () => {
+                    const res = req.result;
+                    if (!res) {
+                        DebugLogger.warn('BRIDGE', `getBlobUri Web: Blob no encontrado en IndexedDB (${filename})`);
+                    }
+                    r(res || null);
+                };
+                req.onerror = (e) => {
+                    DebugLogger.error('BRIDGE', `getBlobUri Web Error para ${filename}:`, { error: e });
+                    r(null);
+                };
             });
         }
         try {
@@ -692,16 +739,16 @@ export const LogiNative = {
             if (res) return Capacitor.convertFileSrc(res.uri);
 
             // INTENTO 2: Scavenger Fallback (Documents - v189.2)
-            // Si no está en Data, buscamos en Documents por si la migración falló
             const legacyRes = await Filesystem.getUri({ path, directory: LEGACY_DIR }).catch(() => null);
             if (legacyRes) {
-                console.warn(`[Bridge] Scavenger encontró blob en LEGACY: ${filename}`);
+                DebugLogger.warn('BRIDGE', `Scavenger encontró blob en LEGACY: ${filename}`);
                 return Capacitor.convertFileSrc(legacyRes.uri);
             }
 
+            DebugLogger.warn('BRIDGE', `getBlobUri Nativo: Archivo no existe en Data ni Documents (${filename})`);
             return null;
         } catch (e) {
-            console.error(`[Bridge] getBlobUri Error (${filename}):`, e);
+            DebugLogger.error('BRIDGE', `getBlobUri Nativo Error (${filename}): ${e.message}`, { error: e });
             return null;
         }
     },
