@@ -21,14 +21,14 @@ export const SettingsScaffold = {
                             <label class="font-headline text-sm font-medium text-on-surface/80 block">Color de Acento</label>
                             <div class="flex items-center justify-between bg-surface-container-low/50 p-4 rounded-lg border border-outline-variant/50">
                                 <div class="flex gap-3">
-                                    <button class="w-6 h-6 rounded-full bg-[#1e90ff] opacity-40 hover:opacity-100 transition-all active:scale-90"></button>
-                                    <button class="w-6 h-6 rounded-full bg-[#00ffff] opacity-40 hover:opacity-100 transition-all active:scale-90"></button>
-                                    <button class="w-6 h-6 rounded-full bg-[#cafd00] opacity-40 hover:opacity-100 transition-all active:scale-90"></button>
-                                    <button class="w-6 h-6 rounded-full bg-[#8a2be2] opacity-40 hover:opacity-100 transition-all active:scale-90"></button>
-                                    <button class="w-6 h-6 rounded-full bg-[#ff6d00] opacity-40 hover:opacity-100 transition-all active:scale-90"></button>
-                                    <button class="w-6 h-6 rounded-full bg-[#ff1493] opacity-40 hover:opacity-100 transition-all active:scale-90"></button>
+                                    <button class="color-accent-dot w-6 h-6 rounded-full bg-[#1e90ff] opacity-40 hover:opacity-100 transition-all active:scale-90" style="background-color: #1e90ff !important;"></button>
+                                    <button class="color-accent-dot w-6 h-6 rounded-full bg-[#00ffff] opacity-40 hover:opacity-100 transition-all active:scale-90" style="background-color: #00ffff !important;"></button>
+                                    <button class="color-accent-dot w-6 h-6 rounded-full bg-[#cafd00] opacity-40 hover:opacity-100 transition-all active:scale-90" style="background-color: #cafd00 !important;"></button>
+                                    <button class="color-accent-dot w-6 h-6 rounded-full bg-[#8a2be2] opacity-40 hover:opacity-100 transition-all active:scale-90" style="background-color: #8a2be2 !important;"></button>
+                                    <button class="color-accent-dot w-6 h-6 rounded-full bg-[#ff6d00] opacity-40 hover:opacity-100 transition-all active:scale-90" style="background-color: #ff6d00 !important;"></button>
+                                    <button class="color-accent-dot w-6 h-6 rounded-full bg-[#ff1493] opacity-40 hover:opacity-100 transition-all active:scale-90" style="background-color: #ff1493 !important;"></button>
                                 </div>
-                                <span class="text-[10px] font-bold font-headline text-primary tracking-widest uppercase">Electric Lime</span>
+                                <span id="accent-color-name" class="color-accent-name text-[10px] font-bold font-headline tracking-widest uppercase">Electric Lime</span>
                             </div>
                         </div>
                     </div>

@@ -20,7 +20,7 @@ export const SettingsView = {
         console.log('[Settings] Rebinding events...');
 
         // Color de Acento
-        const colorButtons = document.querySelectorAll('.glass-card button[class*="rounded-full"]');
+        const colorButtons = document.querySelectorAll('.color-accent-dot');
         colorButtons.forEach(btn => {
             btn.onclick = () => {
                 const color = window.getComputedStyle(btn).backgroundColor;
@@ -158,25 +158,35 @@ export const SettingsView = {
     },
 
     updateColorSelectionUI(activeColor) {
-        const colorButtons = document.querySelectorAll('.glass-card button[class*="rounded-full"]');
+        const colorButtons = document.querySelectorAll('.color-accent-dot');
+        const nameLabel = document.getElementById('accent-color-name');
+
         colorButtons.forEach(btn => {
             const btnColorRaw = window.getComputedStyle(btn).backgroundColor;
             const rgb = btnColorRaw.match(/\d+/g);
             const btnHex = "#" + ((1 << 24) + (+rgb[0] << 16) + (+rgb[1] << 8) + +rgb[2]).toString(16).slice(1);
 
             if (btnHex.toLowerCase() === activeColor.toLowerCase()) {
-                btn.classList.add('ring-2', 'ring-primary', 'ring-offset-4', 'ring-offset-surface-container');
+                btn.classList.add('ring-2', 'ring-primary', 'ring-offset-4', 'ring-offset-surface-container', 'is-active');
                 btn.classList.remove('opacity-40');
-                btn.style.boxShadow = `0 0 12px ${activeColor}66`;
+                btn.style.opacity = '1';
+                btn.style.boxShadow = `0 0 12px ${activeColor}99`;
 
-                // Actualizar texto label
-                const label = btn.parentElement.nextElementSibling;
-                if (label) {
-                    label.textContent = this.getColorName(btnHex);
+                if (nameLabel) {
+                    nameLabel.textContent = this.getColorName(btnHex);
+                    // Asegurar legibilidad extrema en ambos temas
+                    if (document.body.classList.contains('light-mode')) {
+                        nameLabel.style.color = '#0f172a';
+                        nameLabel.style.textShadow = 'none';
+                    } else {
+                        nameLabel.style.color = activeColor;
+                        nameLabel.style.textShadow = `0 0 8px ${activeColor}88`;
+                    }
                 }
             } else {
-                btn.classList.remove('ring-2', 'ring-primary', 'ring-offset-4', 'ring-offset-surface-container');
+                btn.classList.remove('ring-2', 'ring-primary', 'ring-offset-4', 'ring-offset-surface-container', 'is-active');
                 btn.classList.add('opacity-40');
+                btn.style.opacity = '0.4';
                 btn.style.boxShadow = 'none';
             }
         });

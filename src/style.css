@@ -204,12 +204,12 @@ html, body {
     color: #000000 !important;
 }
 
-/* 3. Forzar fondos claros sobre clases HEX persistentes */
-.light-mode [class*="bg-[#0"],
-.light-mode [class*="bg-[#1"],
-.light-mode .bg-black,
+/* 3. Forzar fondos claros sobre contenedores obscuros específicos */
+.light-mode .bg-\[\#0a0a0a\],
+.light-mode .bg-\[\#0f0f0f\],
+.light-mode .bg-\[\#050505\],
 .light-mode .bg-black\/20 {
-    background-color: transparent !important; /* Limpiar el fondo gris de la galería */
+    background-color: transparent !important;
     background: transparent !important;
 }
 
