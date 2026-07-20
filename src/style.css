@@ -2,10 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 
-    Logi Kinetic | Stitch Design System (Acid Neon)
-    Restauración de Tokens de Diseño y Reglas de Cristalismo
-*/
+/* iOS Safe Area (Notch / Dynamic Island) Top Padding Adjustment */
+#global-header {
+    padding-top: max(1rem, env(safe-area-inset-top, 0px)) !important;
+}
 
 :root {
     /* Stitch Palette - Dynamic Accent */
