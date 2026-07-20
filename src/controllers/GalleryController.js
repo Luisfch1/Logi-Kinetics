@@ -111,10 +111,45 @@ class GalleryController {
         filtered.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
         if (this.filterText) {
-            filtered = filtered.filter(it => 
-                (it.descripcion || '').toUpperCase().includes(this.filterText) ||
-                (it.actividad || '').toUpperCase().includes(this.filterText)
-            );
+            const normalize = (str) => String(str || '')
+                .toUpperCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .trim();
+
+            const query = normalize(this.filterText);
+
+            // Crear mapa de catálogo por código de ítem para permitir buscar por descripción o unidad del catálogo
+            const catalogMap = new Map();
+            (State.catalog || []).forEach(cat => {
+                if (cat && cat.item) {
+                    catalogMap.set(normalize(cat.item), cat);
+                }
+            });
+
+            filtered = filtered.filter(it => {
+                const desc = normalize(it.descripcion);
+                const act = normalize(it.actividad);
+                const itemId = normalize(it.id);
+
+                // 1. Coincidencia directa en descripción de la foto, código de actividad o ID
+                if (desc.includes(query) || act.includes(query) || itemId.includes(query)) {
+                    return true;
+                }
+
+                // 2. Coincidencia en el catálogo (descripción o unidad del ítem de catálogo asignado)
+                const cat = catalogMap.get(act);
+                if (cat) {
+                    const catDesc = normalize(cat.descripcion);
+                    const catUnit = normalize(cat.unidad);
+                    const catItemCode = normalize(cat.item);
+                    if (catDesc.includes(query) || catUnit.includes(query) || catItemCode.includes(query)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            });
         }
 
         if (filtered.length === 0) {
