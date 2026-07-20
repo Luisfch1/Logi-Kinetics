@@ -469,3 +469,43 @@ html, body {
     opacity: 1 !important;
     pointer-events: auto !important;
 }
+
+/* --- CONFIGURACIÓN Y APARIENCIA EN MODO CLARO --- */
+.light-mode label,
+.light-mode .text-on-surface\/80,
+.light-mode .text-on-surface {
+    color: #0f172a !important;
+}
+
+.light-mode .bg-surface-container-low\/50,
+.light-mode .bg-surface-container,
+.light-mode .bg-surface-container-high {
+    background-color: #f1f5f9 !important;
+    border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+.light-mode .bg-surface-container .material-symbols-outlined,
+.light-mode .bg-surface-container-high .material-symbols-outlined {
+    color: #0f172a !important;
+}
+
+.light-mode .border-outline-variant,
+.light-mode .border-outline-variant\/50 {
+    border-color: rgba(0, 0, 0, 0.12) !important;
+}
+
+.light-mode .text-on-surface-variant {
+    color: #475569 !important;
+}
+
+.light-mode button.border-outline-variant {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    border-color: rgba(0, 0, 0, 0.15) !important;
+}
+
+.light-mode button.border-error\/20 {
+    background-color: #fff1f2 !important;
+    color: #e11d48 !important;
+    border-color: rgba(225, 29, 72, 0.2) !important;
+}

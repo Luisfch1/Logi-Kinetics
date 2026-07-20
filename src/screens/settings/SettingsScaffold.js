@@ -31,21 +31,6 @@ export const SettingsScaffold = {
                                 <span class="text-[10px] font-bold font-headline text-primary tracking-widest uppercase">Electric Lime</span>
                             </div>
                         </div>
-
-                        <!-- Selector de Modo -->
-                        <div class="space-y-5">
-                            <label class="font-headline text-sm font-medium text-on-surface/80 block">Modo de Interfaz</label>
-                            <div class="grid grid-cols-2 gap-4">
-                                <button class="flex items-center justify-center gap-2 py-3 rounded-lg border border-primary/30 bg-primary/5 text-primary transition-all active:scale-[0.98] glow-border">
-                                    <span class="material-symbols-outlined text-base" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
-                                    <span class="font-headline text-xs font-bold uppercase tracking-widest">Light</span>
-                                </button>
-                                <button class="flex items-center justify-center gap-2 py-3 rounded-lg border border-outline-variant bg-surface-container-high text-on-surface-variant transition-all active:scale-[0.98]">
-                                    <span class="material-symbols-outlined text-base">blur_on</span>
-                                    <span class="font-headline text-xs font-bold uppercase tracking-widest">Dark</span>
-                                </button>
-                            </div>
-                        </div>
                     </div>
                 </section>
 
