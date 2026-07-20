@@ -113,31 +113,69 @@ export const ExportModule = {
         if (selectLogoPos) selectLogoPos.onchange = (e) => this.setLogoPosition(e.target.value);
     },
 
+    async renderPreservingScroll() {
+        const container = document.querySelector('.w-full.h-full.overflow-y-auto') || document.querySelector('.overflow-y-auto');
+        const scrollTop = container ? container.scrollTop : 0;
+        await Architect.render('export');
+        const newContainer = document.querySelector('.w-full.h-full.overflow-y-auto') || document.querySelector('.overflow-y-auto');
+        if (newContainer) newContainer.scrollTop = scrollTop;
+    },
+
     async setMode(newMode) {
         this.config.mode = newMode;
-        await Architect.render('export'); 
+        await this.renderPreservingScroll(); 
     },
 
     async setTemplate(newId) {
         this.config.template = newId;
-        await Architect.render('export');
+        await this.renderPreservingScroll();
     },
 
     async setFormat(newFmt) {
         this.config.format = newFmt;
-        await Architect.render('export');
+        await this.renderPreservingScroll();
     },
 
     async setLogoPosition(newPos) {
         this.config.logoPosition = newPos;
         await LogiNative.dbPut('config', { id: 'export_logo_pos', value: newPos });
-        await Architect.render('export');
+        await this.renderPreservingScroll();
     },
 
     async setWhatsappOption(key, value) {
         this.config[key] = value;
         await LogiNative.dbPut('config', { id: `export_${key}`, value: value });
-        await Architect.render('export');
+        this.updateWhatsappToggleUI(key, value);
+    },
+
+    updateWhatsappToggleUI(key, value) {
+        const toggleTrack = document.getElementById(`toggle-track-${key}`);
+        const toggleKnob = document.getElementById(`toggle-knob-${key}`);
+        const labelText = document.getElementById(`toggle-label-${key}`);
+
+        if (toggleTrack && toggleKnob) {
+            if (value) {
+                toggleTrack.classList.add('is-active', 'bg-primary', 'shadow-neon');
+                toggleTrack.classList.remove('is-inactive');
+                toggleKnob.classList.remove('left-1');
+                toggleKnob.classList.add('right-1');
+            } else {
+                toggleTrack.classList.remove('is-active', 'bg-primary', 'shadow-neon');
+                toggleTrack.classList.add('is-inactive');
+                toggleKnob.classList.remove('right-1');
+                toggleKnob.classList.add('left-1');
+            }
+        }
+
+        if (labelText) {
+            if (value) {
+                labelText.classList.remove('text-white/40');
+                labelText.classList.add('text-white');
+            } else {
+                labelText.classList.remove('text-white');
+                labelText.classList.add('text-white/40');
+            }
+        }
     },
 
     async loadLogo() {

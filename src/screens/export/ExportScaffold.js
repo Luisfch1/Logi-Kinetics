@@ -191,25 +191,25 @@ export const ExportScaffold = {
                         
                         <!-- Toggle Logo -->
                         <div class="flex items-center justify-between p-5 cursor-pointer active:bg-white/5 transition-all"
-                             onclick="window.ExportController?.setWhatsappOption('whatsappIncludeLogo', ${!state.whatsappIncludeLogo})">
+                             onclick="window.ExportController?.setWhatsappOption('whatsappIncludeLogo', !window.ExportController?.config?.whatsappIncludeLogo)">
                             <div class="flex flex-col gap-0.5">
-                                <span class="font-headline font-black text-[9px] ${state.whatsappIncludeLogo ? 'text-white' : 'text-white/40'} uppercase tracking-widest transition-colors">WhatsApp: incluir logo</span>
+                                <span id="toggle-label-whatsappIncludeLogo" class="font-headline font-black text-[9px] ${state.whatsappIncludeLogo ? 'text-white' : 'text-white/40'} uppercase tracking-widest transition-colors">WhatsApp: incluir logo</span>
                                 <span class="text-[6px] text-white/20 font-bold uppercase tracking-widest">EN ESQUINA: ${posLabels[state.logoPosition]}</span>
                             </div>
-                            <div class="w-10 h-5 ${state.whatsappIncludeLogo ? 'bg-primary shadow-neon' : 'bg-white/10'} rounded-full relative transition-all duration-300">
-                                <div class="absolute ${state.whatsappIncludeLogo ? 'right-1' : 'left-1'} top-0.5 w-4 h-4 bg-black rounded-full transition-all duration-300"></div>
+                            <div id="toggle-track-whatsappIncludeLogo" class="toggle-switch-track w-10 h-5 ${state.whatsappIncludeLogo ? 'is-active bg-primary shadow-neon' : 'is-inactive'} rounded-full relative transition-all duration-300">
+                                <div id="toggle-knob-whatsappIncludeLogo" class="toggle-switch-knob absolute ${state.whatsappIncludeLogo ? 'right-1' : 'left-1'} top-0.5 w-4 h-4 rounded-full transition-all duration-300"></div>
                             </div>
                         </div>
 
                         <!-- Toggle Fecha -->
                         <div class="flex items-center justify-between p-5 cursor-pointer active:bg-white/5 transition-all"
-                             onclick="window.ExportController?.setWhatsappOption('whatsappIncludeTimestamp', ${!state.whatsappIncludeTimestamp})">
+                             onclick="window.ExportController?.setWhatsappOption('whatsappIncludeTimestamp', !window.ExportController?.config?.whatsappIncludeTimestamp)">
                             <div class="flex flex-col gap-0.5">
-                                <span class="font-headline font-black text-[9px] ${state.whatsappIncludeTimestamp ? 'text-white' : 'text-white/40'} uppercase tracking-widest transition-colors">WhatsApp: incluir fecha</span>
+                                <span id="toggle-label-whatsappIncludeTimestamp" class="font-headline font-black text-[9px] ${state.whatsappIncludeTimestamp ? 'text-white' : 'text-white/40'} uppercase tracking-widest transition-colors">WhatsApp: incluir fecha</span>
                                 <span class="text-[6px] text-white/20 font-bold uppercase tracking-widest italic">ESQUINA OPUESTA AL LOGO</span>
                             </div>
-                            <div class="w-10 h-5 ${state.whatsappIncludeTimestamp ? 'bg-primary shadow-neon' : 'bg-white/10'} rounded-full relative transition-all duration-300">
-                                <div class="absolute ${state.whatsappIncludeTimestamp ? 'right-1' : 'left-1'} top-0.5 w-4 h-4 bg-black rounded-full transition-all duration-300"></div>
+                            <div id="toggle-track-whatsappIncludeTimestamp" class="toggle-switch-track w-10 h-5 ${state.whatsappIncludeTimestamp ? 'is-active bg-primary shadow-neon' : 'is-inactive'} rounded-full relative transition-all duration-300">
+                                <div id="toggle-knob-whatsappIncludeTimestamp" class="toggle-switch-knob absolute ${state.whatsappIncludeTimestamp ? 'right-1' : 'left-1'} top-0.5 w-4 h-4 rounded-full transition-all duration-300"></div>
                             </div>
                         </div>
 
