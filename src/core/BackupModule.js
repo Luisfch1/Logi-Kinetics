@@ -5,6 +5,7 @@
 import JSZip from 'jszip';
 import { State } from './state.js';
 import { LogiNative } from './capacitor-bridge.js';
+import { DebugLogger } from '../utils/DebugLogger.js';
 
 export const BackupModule = {
     isProcessing: false,
@@ -87,7 +88,15 @@ export const BackupModule = {
 
             // 1. Recopilar datos del proyecto
             const items = State._allItems.filter(it => it.projectId === projectId);
-            const catalog = await LogiNative.dbGetCatalog(projectId);
+            const rawCatalog = await LogiNative.dbGetCatalog(projectId);
+            const catalog = (rawCatalog || []).map(c => ({
+                item: String(c.item || c.codigo || c.codigo_item || '').trim(),
+                descripcion: String(c.descripcion || c.descripción || c.descripcion_item || '').trim(),
+                unidad: String(c.unidad || c.und || c.unidad_item || '').trim(),
+                projectId: projectId
+            }));
+
+            DebugLogger.info('BACKUP', `Exportando proyecto ${projectId}: ${items.length} fotos, ${catalog.length} ítems de catálogo.`);
 
             const backupData = {
                 schemaVersion: 2,
@@ -95,7 +104,7 @@ export const BackupModule = {
                 app: 'Logi Kinetic',
                 createdAt: new Date().toISOString(),
                 projects: [project],
-                catalog: catalog.filter(c => c.projectId === projectId || !c.projectId),
+                catalog: catalog,
                 items: items
             };
 
@@ -337,24 +346,58 @@ export const BackupModule = {
             await LogiNative.dbCommitBatch('meta', projectsToImport);
         }
 
-        // Migrar Catálogo (v192.7 - Optimización Nuclear)
-        if (catalogToImport.length > 0) {
+        // Migrar Catálogo (v192.7 - Optimización Nuclear + Fix Respaldo de Proyecto)
+        if (catalogToImport && catalogToImport.length > 0) {
             this._notifyProgress(0, 1, "Restaurando catálogos de proyectos...");
             const catalogsByProject = {};
 
+            // Determinar ID del proyecto destino para respaldos de proyecto único
+            const targetProjectId = (projectsToImport[0] && projectsToImport[0].id)
+                || data.projectId
+                || (State.currentProject && State.currentProject.id)
+                || 'p_default';
+
+            DebugLogger.info('BACKUP', `Restaurando ${catalogToImport.length} ítems de catálogo. Target PID por defecto: ${targetProjectId}`);
+
             for (const c of catalogToImport) {
-                // Soportar formato plano (legacy) o anidado
-                if (c.projectId && c.items) {
+                if (!c) continue;
+
+                // Caso 1: Formato con array anidado 'items' por proyecto (Respaldo Total)
+                // Ej: { projectId: "p_123", items: [ { item: "01", ... } ] }
+                if (c.projectId && Array.isArray(c.items)) {
                     catalogsByProject[c.projectId] = c.items;
-                } else if (c.projectId) {
-                    if (!catalogsByProject[c.projectId]) catalogsByProject[c.projectId] = [];
-                    catalogsByProject[c.projectId].push({ item: c.item, descripcion: c.descripcion, unidad: c.unidad });
+                }
+                // Caso 2: Formato plano con 'projectId' explícito en cada item
+                // Ej: { item: "01", descripcion: "...", unidad: "...", projectId: "p_123" }
+                else if (c.projectId && (c.item || c.codigo || c.codigo_item)) {
+                    const pid = c.projectId;
+                    if (!catalogsByProject[pid]) catalogsByProject[pid] = [];
+                    catalogsByProject[pid].push({
+                        item: String(c.item || c.codigo || c.codigo_item || '').trim(),
+                        descripcion: String(c.descripcion || c.descripción || c.descripcion_item || '').trim(),
+                        unidad: String(c.unidad || c.und || c.unidad_item || '').trim()
+                    });
+                }
+                // Caso 3: Formato plano SIN 'projectId' (Respaldo de Proyecto Único)
+                // Ej: { item: "01", descripcion: "...", unidad: "..." }
+                else if (c.item || c.codigo || c.codigo_item) {
+                    const pid = targetProjectId;
+                    if (!catalogsByProject[pid]) catalogsByProject[pid] = [];
+                    catalogsByProject[pid].push({
+                        item: String(c.item || c.codigo || c.codigo_item || '').trim(),
+                        descripcion: String(c.descripcion || c.descripción || c.descripcion_item || '').trim(),
+                        unidad: String(c.unidad || c.und || c.unidad_item || '').trim()
+                    });
                 }
             }
 
             for (const pid in catalogsByProject) {
-                await LogiNative.dbPutCatalog(pid, catalogsByProject[pid]);
+                const catItems = catalogsByProject[pid];
+                DebugLogger.event('BACKUP', `Persistiendo catálogo para proyecto ${pid}: ${catItems.length} ítems`);
+                await LogiNative.dbPutCatalog(pid, catItems);
             }
+        } else {
+            DebugLogger.warn('BACKUP', 'El respaldo procesado no contiene catálogo.');
         }
 
         // v190.0: Indexación Relámpago del ZIP (Solo si hay ZIP)
