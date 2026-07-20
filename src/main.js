@@ -189,8 +189,8 @@ function showDebugConsole() {
 
         let html = `
             <div class="bg-primary/20 p-3 text-center rounded-xl mb-4 border border-primary/30">
-                <p class="text-[10px] font-black text-primary tracking-[0.3em] uppercase">ULTIMATE DEBUG CONSOLE (v2.0 - EXPERT ENGINE)</p>
-                <p class="text-[8px] text-white/50 mt-1">LÍNEA DE TIEMPO + SUITE DE DIAGNÓSTICO EN TIEMPO REAL</p>
+                <p class="text-[10px] font-black text-primary tracking-[0.3em] uppercase">LOGI KINETICS v1.7 · ULTIMATE DEBUG CONSOLE</p>
+                <p class="text-[8px] text-white/50 mt-1">SISTEMA DE CONTROL Y DIAGNÓSTICO EN TIEMPO REAL · VERSIÓN 1.7</p>
             </div>
 
             <!-- BOTONES DE ACCIÓN RÁPIDA -->
