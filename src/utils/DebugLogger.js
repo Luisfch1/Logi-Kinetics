@@ -275,6 +275,113 @@ class DebugLoggerService {
             checks.push({ name: 'Camera Web API Support', pass: false, detail: camErr.message, durationMs: 0 });
         }
 
+        // 5. Verificación física de archivos de imágenes en Disco / DB (v0.0.3)
+        try {
+            const { LogiNative } = await import('../core/capacitor-bridge.js');
+            const { State } = await import('../core/state.js');
+            
+            if (LogiNative.isNative()) {
+                const items = State._allItems || [];
+                let foundPrimary = 0;
+                let foundLegacy = 0;
+                let missing = 0;
+                
+                const sample = items.slice(0, 20);
+                for (const it of sample) {
+                    if (!it.filename) continue;
+                    const cleanName = String(it.filename).trim();
+                    const candidates = Array.from(new Set([
+                        cleanName, 
+                        `${cleanName}.jpg`, 
+                        cleanName.replace(/\.jpg$/i, ''),
+                        cleanName.replace(/^cap_/, '')
+                    ]));
+                    
+                    let exists = false;
+                    for (const c of candidates) {
+                        const path = `Logi/blobs/${c}`;
+                        if (await LogiNative.fileExists(path)) {
+                            foundPrimary++;
+                            exists = true;
+                            break;
+                        } else if (await LogiNative.fileExists(path, 'documents')) {
+                            foundLegacy++;
+                            exists = true;
+                            break;
+                        }
+                    }
+                    if (!exists) missing++;
+                }
+                
+                const pass = missing === 0;
+                checks.push({
+                    name: 'Integridad Fotos en Disco',
+                    pass: pass,
+                    detail: `Muestra de ${sample.length}: ${foundPrimary} en Data, ${foundLegacy} en Documents, ${missing} faltantes.`,
+                    durationMs: 0
+                });
+            } else {
+                const db = await new Promise((resolve) => {
+                    const req = indexedDB.open('LogiKineticDB', 1);
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => resolve(null);
+                });
+                
+                if (db) {
+                    const items = State._allItems || [];
+                    let found = 0;
+                    let missing = 0;
+                    const sample = items.slice(0, 20);
+                    
+                    if (sample.length === 0) {
+                        checks.push({
+                            name: 'Integridad Fotos IndexedDB',
+                            pass: true,
+                            detail: 'No hay capturas registradas para verificar.',
+                            durationMs: 0
+                        });
+                    } else {
+                        await new Promise((resolve) => {
+                            const tx = db.transaction('blobs', 'readonly');
+                            const store = tx.objectStore('blobs');
+                            let checked = 0;
+                            
+                            sample.forEach(it => {
+                                const cleanName = String(it.filename).trim();
+                                const req = store.get(cleanName);
+                                req.onsuccess = () => {
+                                    if (req.result) found++;
+                                    else missing++;
+                                    if (++checked === sample.length) {
+                                        db.close();
+                                        resolve();
+                                    }
+                                };
+                                req.onerror = () => {
+                                    missing++;
+                                    if (++checked === sample.length) {
+                                        db.close();
+                                        resolve();
+                                    }
+                                };
+                            });
+                        });
+                        
+                        checks.push({
+                            name: 'Integridad Fotos IndexedDB',
+                            pass: missing === 0,
+                            detail: `Muestra de ${sample.length}: ${found} en DB, ${missing} faltantes.`,
+                            durationMs: 0
+                        });
+                    }
+                } else {
+                    checks.push({ name: 'Integridad Fotos IndexedDB', pass: false, detail: 'Base de datos IndexedDB no disponible', durationMs: 0 });
+                }
+            }
+        } catch (fileErr) {
+            checks.push({ name: 'Integridad Fotos en Disco', pass: false, detail: fileErr.message, durationMs: 0 });
+        }
+
         const totalTime = Math.round(performance.now() - startTotal);
         const allPassed = checks.every(c => c.pass);
 
