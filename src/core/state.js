@@ -161,6 +161,11 @@ class StateManager {
                 if (!allRaw || allRaw.length === 0) {
                     this.isLoaded = true;
                     this.notify('projects');
+                    if (LogiNative.isNative()) {
+                        import('./BackupModule.js').then(({ BackupModule }) => {
+                            BackupModule.reconcile();
+                        }).catch(e => console.error("Reconcile error:", e));
+                    }
                     return;
                 }
 
@@ -197,6 +202,12 @@ class StateManager {
                 this.notify('items');
                 this.notify('projects');
                 console.log(`[State] Global Pulse Load OK (v192.3-TITAN): ${processedItems.length} loaded, total ${this._allItems.length}`);
+
+                if (LogiNative.isNative() && this._allItems.length === 0) {
+                    import('./BackupModule.js').then(({ BackupModule }) => {
+                        BackupModule.reconcile();
+                    }).catch(e => console.error("Reconcile error:", e));
+                }
             }, 100);
 
             this.isLoaded = true;

@@ -18,6 +18,12 @@ export const BackupModule = {
         if (this.isProcessing) return;
         if (!LogiNative.isNative()) return;
 
+        // GIGA-RECONCILER FIX: Wait if state is not fully loaded!
+        if (!State.isLoaded) {
+            console.log("[Backup] Reconcile pospuesto: State no está cargado aún.");
+            return;
+        }
+
         try {
             // 1. Verificar si ya se reconcilió en esta sesión o si hay datos
             if (State._allItems.length > 0) return;

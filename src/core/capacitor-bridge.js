@@ -200,14 +200,21 @@ export const LogiNative = {
                 }
             }
 
-            // Fotos (se migran bajo demanda o progresivamente en v172, 
-            // pero para evitar pérdida en v189 movemos la carpeta principal)
-            await Filesystem.copy({
-                from: `${DATA_DIR}/blobs`,
-                to: `${DATA_DIR}/blobs`,
-                directory: LEGACY_DIR,
-                toDirectory: PRIMARY_DIR
-            }).catch(() => { });
+            // Fotos: Migrar todos los archivos de blobs uno por uno (v192.6-FIX)
+            const blobsDir = `${DATA_DIR}/blobs`;
+            const bFiles = await Filesystem.readdir({ path: blobsDir, directory: LEGACY_DIR }).catch(() => null);
+            if (bFiles && bFiles.files) {
+                await Filesystem.mkdir({ path: blobsDir, directory: PRIMARY_DIR, recursive: true }).catch(() => { });
+                for (const f of bFiles.files) {
+                    const name = typeof f === 'string' ? f : f.name;
+                    await Filesystem.copy({
+                        from: `${blobsDir}/${name}`,
+                        to: `${blobsDir}/${name}`,
+                        directory: LEGACY_DIR,
+                        toDirectory: PRIMARY_DIR
+                    }).catch(() => { });
+                }
+            }
 
             localStorage.setItem('logi_migrated_v189', 'true');
             console.log("[Bridge] Migración Completada.");
@@ -785,14 +792,20 @@ export const LogiNative = {
                 const path = `${DATA_DIR}/blobs/${c}`;
 
                 // INTENTO 1: Ubicación Primaria (Data)
-                const res = await Filesystem.getUri({ path, directory: PRIMARY_DIR }).catch(() => null);
-                if (res) return Capacitor.convertFileSrc(res.uri);
+                const existsPrimary = await LogiNative.fileExists(path);
+                if (existsPrimary) {
+                    const res = await Filesystem.getUri({ path, directory: PRIMARY_DIR }).catch(() => null);
+                    if (res) return Capacitor.convertFileSrc(res.uri);
+                }
 
                 // INTENTO 2: Scavenger Fallback (Documents)
-                const legacyRes = await Filesystem.getUri({ path, directory: LEGACY_DIR }).catch(() => null);
-                if (legacyRes) {
-                    DebugLogger.warn('BRIDGE', `Scavenger encontró blob en LEGACY: ${c}`);
-                    return Capacitor.convertFileSrc(legacyRes.uri);
+                const existsLegacy = await LogiNative.fileExists(path, 'documents');
+                if (existsLegacy) {
+                    const legacyRes = await Filesystem.getUri({ path, directory: LEGACY_DIR }).catch(() => null);
+                    if (legacyRes) {
+                        DebugLogger.warn('BRIDGE', `Scavenger encontró blob en LEGACY: ${c}`);
+                        return Capacitor.convertFileSrc(legacyRes.uri);
+                    }
                 }
             }
 
