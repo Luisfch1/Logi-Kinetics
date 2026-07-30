@@ -21,6 +21,8 @@ import { LogiNative } from './core/capacitor-bridge.js';
 import { DebugLogger } from './utils/DebugLogger.js';
 import { defineCustomElements } from '@ionic/pwa-elements/loader';
 
+const APP_VERSION = '0.0.8';
+
 // Inicializar elementos PWA para soporte de cámara/galería en Web
 defineCustomElements(window);
 
@@ -42,7 +44,7 @@ Architect.register('settings', SettingsView);
 Architect.register('items_view', ItemsView);
 
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('[App] Kinetic Engine Initialized');
+    console.log(`[App] Kinetic Engine Initialized · v${APP_VERSION}`);
     try {
         await LogiNative.init();
         
@@ -59,6 +61,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupHeaderSettings();
         setupThemeToggle();
         setupNavigation();
+        setupDebugConsoleTrigger();
 
         State.subscribe(() => {
             updateHeaderProjectName();
@@ -101,6 +104,22 @@ function setupThemeToggle() {
     }
 }
 
+function setupDebugConsoleTrigger() {
+    const logo = document.querySelector('h1.font-black');
+    if (!logo) return;
+
+    let clickCount = 0;
+    logo.onclick = (event) => {
+        event.stopPropagation();
+        clickCount += 1;
+        if (clickCount >= 5) {
+            clickCount = 0;
+            showDebugConsole();
+        }
+        setTimeout(() => { clickCount = 0; }, 3000);
+    };
+}
+
 function setupNavigation() {
     const tabs = ['capture', 'gallery', 'export', 'reports', 'settings', 'projects'];
     
@@ -134,20 +153,6 @@ function updateHeaderProjectName() {
         const total = (State._allItems || []).length;
         
         // Diagnóstico v189.8 (Consola de Emergencia)
-        let clickCount = 0;
-        const logo = document.querySelector('h1.font-black');
-        if (logo) {
-            logo.onclick = (e) => {
-                e.stopPropagation();
-                clickCount++;
-                if (clickCount >= 5) {
-                    clickCount = 0;
-                    showDebugConsole();
-                }
-                setTimeout(() => { clickCount = 0; }, 3000);
-            };
-        }
-
         const debug = LogiNative.getDebugInfo();
         const storageLabel = debug.platform === 'NATIVE' ? `(${debug.primary === 'DATA' ? 'PRIV' : 'PUB'})` : '(WEB)';
         
@@ -189,7 +194,7 @@ function showDebugConsole() {
 
         let html = `
             <div class="bg-primary/20 p-3 text-center rounded-xl mb-4 border border-primary/30">
-                <p class="text-[10px] font-black text-primary tracking-[0.3em] uppercase">LOGI KINETICS v0.0.6 · REPORT STUDIO</p>
+                <p class="text-[10px] font-black text-primary tracking-[0.3em] uppercase">LOGI KINETICS v${APP_VERSION} · REPORT STUDIO</p>
                 <p class="text-[8px] text-white/50 mt-1">ULTIMATE DEBUG CONSOLE · PLANTILLAS WORD Y PDF</p>
             </div>
 
