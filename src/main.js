@@ -189,8 +189,8 @@ function showDebugConsole() {
 
         let html = `
             <div class="bg-primary/20 p-3 text-center rounded-xl mb-4 border border-primary/30">
-                <p class="text-[10px] font-black text-primary tracking-[0.3em] uppercase">LOGI KINETICS v0.0.3 · ULTIMATE DEBUG CONSOLE</p>
-                <p class="text-[8px] text-white/50 mt-1">SISTEMA DE CONTROL Y DIAGNÓSTICO EN TIEMPO REAL · VERSIÓN 0.0.3</p>
+                <p class="text-[10px] font-black text-primary tracking-[0.3em] uppercase">LOGI KINETICS v0.0.4 · PHOTO GUARD</p>
+                <p class="text-[8px] text-white/50 mt-1">ULTIMATE DEBUG CONSOLE · VERIFICACIÓN DE ARCHIVOS FOTOGRÁFICOS</p>
             </div>
 
             <!-- BOTONES DE ACCIÓN RÁPIDA -->
