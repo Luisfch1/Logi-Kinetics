@@ -103,6 +103,10 @@ export const GalleryEditOverlay = {
         const loader = document.getElementById('edit-img-loader');
         if (img) {
             img.src = imageUri || '';
+            img.onerror = async () => {
+                const fallback = await LogiNative.readBlobAsBase64(filename);
+                if (fallback && img.src !== fallback) img.src = fallback;
+            };
             img.onload = () => {
                 img.classList.remove('opacity-0');
                 if (loader) loader.remove();

@@ -237,7 +237,13 @@ class GalleryController {
         const uri = await LogiNative.getBlobUri(item.filename);
         if (uri) {
             const img = document.getElementById(`gal-img-${item.id}`);
-            if (img) img.src = uri;
+            if (img) {
+                img.src = uri;
+                img.onerror = async () => {
+                    const fallback = await LogiNative.readBlobAsBase64(item.filename);
+                    if (fallback && img.src !== fallback) img.src = fallback;
+                };
+            }
         }
     }
 

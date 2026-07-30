@@ -414,12 +414,17 @@ export const CaptureCtrl = {
         // Guardado persistente
         const savedBlob = await LogiNative.storeBlob(filename, finalBase64);
         if (!savedBlob) {
+            alert('La foto no se pudo guardar de forma segura. No se creó el registro para evitar una miniatura vacía. Inténtalo de nuevo.');
             DebugLogger.error('CAPTURE', `Fallo crítico al guardar blob ${filename}`);
+            return;
         }
 
         const savedMeta = await LogiNative.dbPut('items_meta', data);
         if (!savedMeta) {
+            await LogiNative.deleteBlob(filename);
+            alert('No se pudo registrar la foto. Inténtalo de nuevo.');
             DebugLogger.error('CAPTURE', `Fallo crítico al guardar metadatos de ${id}`);
+            return;
         }
         
         // Actualización de estado

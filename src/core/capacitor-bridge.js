@@ -709,12 +709,15 @@ export const LogiNative = {
         }
         try {
             const dtWrite0 = performance.now();
+            const path = `${DATA_DIR}/blobs/${filename}`;
             await withTimeout(Filesystem.writeFile({
-                path: `${DATA_DIR}/blobs/${filename}`,
+                path,
                 data: base64.replace(/^data:image\/jpeg;base64,/, ''),
                 directory: PRIMARY_DIR,
                 recursive: true
             }), 15000);
+            const savedFile = await withTimeout(Filesystem.stat({ path, directory: PRIMARY_DIR }), 5000);
+            if (!savedFile) throw new Error('Android did not confirm the saved photo');
             const dt = Math.round(performance.now() - dtWrite0);
             DebugLogger.info('BRIDGE', `storeBlob OK (Nativo Filesystem): ${filename} en ${dt}ms (${payloadKB} KB)`);
             return true;
@@ -862,11 +865,23 @@ export const LogiNative = {
 
     readBlobAsBase64: async (filename) => {
         if (!LogiNative.isNative()) return LogiNative.getBlobUri(filename);
-        try {
-            const path = `${DATA_DIR}/blobs/${filename}`;
-            const res = await withTimeout(Filesystem.readFile({ path, directory: PRIMARY_DIR }));
-            return `data:image/jpeg;base64,${res.data}`;
-        } catch (e) { return null; }
+        const cleanName = String(filename || '').trim();
+        if (!cleanName) return null;
+
+        const noExt = cleanName.replace(/\.jpg$/i, '');
+        const noCap = noExt.replace(/^cap_/, '');
+        const candidates = Array.from(new Set([cleanName, `${cleanName}.jpg`, `${noCap}.jpg`, noExt]));
+
+        for (const name of candidates) {
+            const path = `${DATA_DIR}/blobs/${name}`;
+            for (const directory of [PRIMARY_DIR, LEGACY_DIR]) {
+                try {
+                    const res = await withTimeout(Filesystem.readFile({ path, directory }), 10000);
+                    if (res?.data) return `data:image/jpeg;base64,${res.data}`;
+                } catch (_) { /* Try the next stored variant. */ }
+            }
+        }
+        return null;
     },
 
     shareProcessed: async (processedItems) => {
