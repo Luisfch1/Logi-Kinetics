@@ -10,7 +10,7 @@ import { ReportsModule } from './ReportsController.js';
 import { 
     Document, Packer, Paragraph, TextRun, ImageRun, 
     Table, TableRow, TableCell, WidthType, AlignmentType, 
-    Header, Footer, BorderStyle, HeightRule, VerticalAlign, ShadingType
+    Header, Footer, BorderStyle, HeightRule, VerticalAlign, ShadingType, PageNumber
 } from 'docx';
 
 export const ExportModule = {
@@ -232,6 +232,46 @@ export const ExportModule = {
         return desc;
     },
 
+    _getCatalogItem(code) {
+        if (!State.catalog || !code) return null;
+        const cleanCode = String(code).trim().toUpperCase();
+        return State.catalog.find(it => String(it.item || '').trim().toUpperCase() === cleanCode) || null;
+    },
+
+    _getDateLabel() {
+        if (this.config.mode === 'dia') return this._formatDateRange(this.config.dateDay, this.config.dateDay);
+        if (this.config.mode === 'mes') {
+            const [year, month] = this.config.dateMonth.split('-');
+            const lastDay = new Date(year, month, 0).getDate();
+            return this._formatDateRange(`${year}-${month}-01`, `${year}-${month}-${lastDay}`);
+        }
+        return this._formatDateRange(this.config.dateStart, this.config.dateEnd);
+    },
+
+    _createDocxHeader(project, reportLabel) {
+        return new Header({ children: [new Table({
+            width: { size: 10500, type: WidthType.DXA },
+            borders: { top: { style: BorderStyle.SINGLE, size: 20, color: 'CAFD00' }, bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }, left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }, right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }, insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }, insideVertical: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' } },
+            rows: [new TableRow({ children: [new TableCell({
+                width: { size: 3000, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: '101820' },
+                children: [new Paragraph({ children: [new TextRun({ text: 'LOGI', bold: true, color: 'CAFD00', size: 32 })], spacing: { before: 120, after: 120 } })]
+            }), new TableCell({
+                width: { size: 7500, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: '101820' },
+                children: [new Paragraph({ children: [new TextRun({ text: (project.name || 'PROYECTO').toUpperCase(), bold: true, color: 'FFFFFF', size: 20 })], alignment: AlignmentType.RIGHT, spacing: { before: 80 } }), new Paragraph({ children: [new TextRun({ text: `${reportLabel} · ${this._getDateLabel().toUpperCase()}`, color: 'B8C2CC', size: 13 })], alignment: AlignmentType.RIGHT, spacing: { after: 100 } })]
+            })] })]
+        }), new Paragraph('')] });
+    },
+
+    _createDocxFooter() {
+        return new Footer({ children: [new Paragraph({
+            children: [new TextRun({ text: 'LOGI KINETICS  |  REGISTRO FOTOGRÁFICO  |  PÁGINA ', color: '6B7280', size: 12 }), new TextRun({ children: [PageNumber.CURRENT], color: 'CAFD00', bold: true, size: 12 })],
+            alignment: AlignmentType.CENTER,
+            border: { top: { style: BorderStyle.SINGLE, size: 4, color: 'CAFD00', space: 4 } }
+        })] });
+    },
+
     // --- LÓGICA DE FECHAS INTELIGENTE ---
     _formatDateRange(startStr, endStr) {
         const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
@@ -396,10 +436,14 @@ export const ExportModule = {
                 this._updateProgress(`GENERANDO WORD Y PDF (${adaptiveMaxWidth}px)...`);
                 
                 // 1. Generar Word (Comparte automáticamente)
-                if (tmplId === 'Plantilla2.pdf' || tmplId === 'Plantilla3.pdf') {
+                if (tmplId === 'Plantilla2.pdf') {
                     await this._generateTechnicalDocx(project, filtered, `${baseFileName}.docx`, adaptiveMaxWidth);
                     this._updateProgress(`GENERANDO VISTA PREVIA PDF...`);
                     await this._generateTechnicalReport(project, filtered, `${baseFileName}.pdf`, adaptiveMaxWidth, true);
+                } else if (tmplId === 'Plantilla3.pdf') {
+                    await this._generateItemDocx(project, filtered, `${baseFileName}.docx`, adaptiveMaxWidth);
+                    this._updateProgress(`GENERANDO VISTA PREVIA PDF...`);
+                    await this._generateItemReport(project, filtered, `${baseFileName}.pdf`, adaptiveMaxWidth, true);
                 } else {
                     await this._generateDocx(project, filtered, `${baseFileName}.docx`, adaptiveMaxWidth);
                     this._updateProgress(`GENERANDO VISTA PREVIA PDF...`);
@@ -415,8 +459,10 @@ export const ExportModule = {
                 if (filtered.length > 120) console.log(`[ExportOptimizer] Adaptando resolución a ${adaptiveMaxWidth}px para ${filtered.length} fotos.`);
                 
                 this._updateProgress(`GENERANDO REPORTE PDF (${adaptiveMaxWidth}px)...`);
-                if (tmplId === 'Plantilla2.pdf' || tmplId === 'Plantilla3.pdf') {
+                if (tmplId === 'Plantilla2.pdf') {
                     await this._generateTechnicalReport(project, filtered, `${baseFileName}.pdf`, adaptiveMaxWidth);
+                } else if (tmplId === 'Plantilla3.pdf') {
+                    await this._generateItemReport(project, filtered, `${baseFileName}.pdf`, adaptiveMaxWidth);
                 } else {
                     await this._generateClassicReport(project, filtered, `${baseFileName}.pdf`, adaptiveMaxWidth);
                 }
@@ -522,11 +568,12 @@ export const ExportModule = {
 
     _drawHeader(page, project, logoImg, dateLabel, fontNormal, fontBold, rgb, w, h, m) {
         const acc = this._getAccentRgb();
+        page.drawRectangle({ x: 0, y: h - 68, width: w, height: 68, color: rgb(0.06, 0.09, 0.12) });
         page.drawRectangle({ x: 0, y: h - 5, width: w, height: 5, color: rgb(acc.r, acc.g, acc.b) });
         page.drawText("LOGI", { x: m, y: h - 35, size: 18, font: fontBold, color: rgb(acc.r, acc.g, acc.b) });
         const projectName = (project.name || "S/N").toUpperCase();
-        page.drawText(projectName, { x: m + 50, y: h - 35, size: 11, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
-        page.drawText(`REGISTRO FOTOGRÁFICO: ${dateLabel.toUpperCase()}`, { x: m + 50, y: h - 48, size: 7, font: fontNormal, color: rgb(0.4, 0.4, 0.4) });
+        page.drawText(projectName, { x: m + 50, y: h - 35, size: 11, font: fontBold, color: rgb(1, 1, 1) });
+        page.drawText(`REGISTRO FOTOGRÁFICO: ${dateLabel.toUpperCase()}`, { x: m + 50, y: h - 48, size: 7, font: fontNormal, color: rgb(0.75, 0.78, 0.82) });
     },
 
     async _generateTechnicalReport(project, filtered, fileName, customResizeWidth, skipShare = false) {
@@ -614,7 +661,59 @@ export const ExportModule = {
         await LogiNative.shareBlob(blob, finalName, project.id, skipShare);
     },
 
+    async _generateItemReport(project, filtered, fileName, customResizeWidth, skipShare = false) {
+        const { PDFDocument, rgb, StandardFonts } = window.PDFLib;
+        const doc = await PDFDocument.create();
+        const font = await doc.embedFont(StandardFonts.Helvetica);
+        const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
+        const pageWidth = 612;
+        const pageHeight = 792;
+        const margin = 40;
+        const dateLabel = this._getDateLabel();
+        const groups = new Map();
+
+        filtered.forEach(photo => {
+            const key = String(photo.actividad || '').trim().toUpperCase() || 'SIN_ITEM';
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push(photo);
+        });
+
+        const pages = [];
+        groups.forEach((photos, code) => {
+            for (let index = 0; index < photos.length; index += 4) pages.push({ code, photos: photos.slice(index, index + 4) });
+        });
+
+        for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+            const { code, photos } = pages[pageIndex];
+            const page = doc.addPage([pageWidth, pageHeight]);
+            this._drawHeaderV2(page, project, null, dateLabel, font, fontBold, rgb, pageWidth, pageHeight, margin);
+
+            const catalog = this._getCatalogItem(code);
+            const title = code === 'SIN_ITEM' ? 'EVIDENCIAS SIN ÍTEM ASIGNADO' : `ÍTEM ${code}`;
+            const details = [catalog?.descripcion, catalog?.unidad ? `UNIDAD: ${catalog.unidad}` : ''].filter(Boolean).join('  ·  ');
+            const accent = this._getAccentRgb();
+            page.drawRectangle({ x: margin, y: pageHeight - 128, width: pageWidth - margin * 2, height: 34, color: rgb(0.06, 0.09, 0.12) });
+            page.drawText(title, { x: margin + 10, y: pageHeight - 108, size: 10, font: fontBold, color: rgb(accent.r, accent.g, accent.b) });
+            if (details) page.drawText(details.substring(0, 100), { x: margin + 10, y: pageHeight - 121, size: 6.5, font, color: rgb(0.8, 0.84, 0.88) });
+
+            const slotW = (pageWidth - margin * 2 - 20) / 2;
+            const slotH = 270;
+            for (let index = 0; index < photos.length; index++) {
+                const x = margin + (index % 2) * (slotW + 20);
+                const y = pageHeight - 145 - (Math.floor(index / 2) + 1) * slotH;
+                const globalIndex = filtered.indexOf(photos[index]) + 1;
+                await this._drawPhotoSlotV2(doc, page, photos[index], globalIndex, x, y, slotW, slotH, font, fontBold, rgb, customResizeWidth);
+            }
+            page.drawText(`LOGI KINETICS  |  FICHAS TÉCNICAS POR ÍTEM  |  PÁGINA ${pageIndex + 1} DE ${pages.length}`, { x: margin, y: 15, size: 7, font, color: rgb(0.45, 0.45, 0.45) });
+        }
+
+        const blob = new Blob([await doc.save()], { type: 'application/pdf' });
+        await LogiNative.shareBlob(blob, fileName || `Fichas_Tecnicas_${project.name || 'Logi'}_${Date.now()}.pdf`, project.id, skipShare);
+    },
+
     _drawHeaderV2(page, project, logoImg, dateLabel, fontNormal, fontBold, rgb, w, h, m) {
+        this._drawHeader(page, project, logoImg, dateLabel, fontNormal, fontBold, rgb, w, h, m);
+        return;
         page.drawRectangle({ x: m, y: h - 105, width: w - (m * 2), height: 1.5, color: rgb(0,0,0) });
         page.drawText("LOGI", { x: m, y: h - 60, size: 28, font: fontBold, color: rgb(0,0,0) });
         page.drawText("SISTEMAS DE CONTROL TÉCNICO", { x: m, y: h - 78, size: 8, font: fontNormal, color: rgb(0.6, 0.6, 0.6) });
@@ -1007,8 +1106,9 @@ export const ExportModule = {
                                 children: [
                                     new ImageRun({
                                         data: imgBytes,
+                                        type: 'jpg',
                                         transformation: { width: imgW, height: imgH },
-                                        docProperties: { id: ++drawingId, name: `Picture ${drawingId}` }
+                                        altText: { name: `Foto ${++drawingId}`, description: `Evidencia fotográfica ${drawingId}` }
                                     }),
                                 ],
                                 alignment: AlignmentType.CENTER,
@@ -1022,7 +1122,8 @@ export const ExportModule = {
                             }));
                         }
 
-                        const itemName = this._getItemName((snap.actividad || 'GENERAL').toUpperCase());
+                        const activityTxt = String(snap.actividad || '').trim().toUpperCase();
+                        const itemName = this._getItemName(activityTxt);
                         cellChildren.push(new Paragraph({
                             children: [
                                 new TextRun({ 
@@ -1030,21 +1131,13 @@ export const ExportModule = {
                                     bold: true, size: 13, color: "000000",
                                     shading: { type: ShadingType.CLEAR, fill: "cafd00" } 
                                 }),
-                                new TextRun({ text: "  " }),
-                                new TextRun({ 
-                                    text: itemName 
-                                        ? `FOTO: ${(snap.actividad || 'GENERAL').toUpperCase()} - ${itemName}`
-                                        : `FOTO: ${(snap.actividad || 'GENERAL').toUpperCase()}`, 
-                                    bold: true, size: 15 
-                                }),
+                                ...(activityTxt ? [new TextRun({ text: `  ÍTEM ${activityTxt}${itemName ? ` · ${itemName}` : ''}`, bold: true, size: 15 })] : []),
                             ],
                             alignment: AlignmentType.LEFT,
                         }));
 
                         cellChildren.push(new Paragraph({
-                            children: [
-                                new TextRun({ text: (snap.descripcion || 'SIN DESCRIPCIÓN').toUpperCase(), color: "444444", size: 12 }),
-                            ],
+                            children: snap.descripcion ? [new TextRun({ text: snap.descripcion.toUpperCase(), color: "444444", size: 12 })] : [],
                             alignment: AlignmentType.LEFT,
                             spacing: { after: 150 },
                         }));
@@ -1090,7 +1183,8 @@ export const ExportModule = {
                     },
                 },
                 sections: [{
-                    headers: { default: new Header({ children: [headerTable, new Paragraph("")] }) },
+                    headers: { default: this._createDocxHeader(project, 'BITÁCORA VISUAL') },
+                    footers: { default: this._createDocxFooter() },
                     children: [mainTable, new Paragraph("")],
                 }],
             });
@@ -1107,7 +1201,7 @@ export const ExportModule = {
         }
     },
 
-    async _generateTechnicalDocx(project, filtered, fileName, customResizeWidth) {
+    async _generateTechnicalDocx(project, filtered, fileName, customResizeWidth, groupByItem = false) {
         try {
             let drawingId = 0;
             // Ordenar
@@ -1202,19 +1296,48 @@ export const ExportModule = {
 
             // --- GRID 2 COLUMNAS (Stitch V2 Style + TITAN-X Optimization) ---
             const docRows = [];
-            for (let i = 0; i < filtered.length; i += 2) {
+            const tableItems = [];
+            if (groupByItem) {
+                const groups = new Map();
+                filtered.forEach(photo => {
+                    const key = String(photo.actividad || '').trim().toUpperCase() || 'SIN_ITEM';
+                    if (!groups.has(key)) groups.set(key, []);
+                    groups.get(key).push(photo);
+                });
+                groups.forEach(group => {
+                    tableItems.push(...group);
+                    if (group.length % 2) tableItems.push({ _groupSpacer: true });
+                });
+            } else {
+                tableItems.push(...filtered);
+            }
+
+            let previousGroup = null;
+            for (let i = 0; i < tableItems.length; i += 2) {
                 const pageNum = Math.floor(i / 2) + 1;
-                const totalPages = Math.ceil(filtered.length / 2);
+                const totalPages = Math.ceil(tableItems.length / 2);
                 this._updateProgress(`CONSTRUYENDO WORD... (${pageNum}/${totalPages})`);
 
-                const chunk = filtered.slice(i, i + 2);
+                const chunk = tableItems.slice(i, i + 2);
+                const groupCode = String(chunk[0]?.actividad || '').trim().toUpperCase() || 'SIN_ITEM';
+                if (groupByItem && !(chunk[0]?._groupSpacer) && groupCode !== previousGroup) {
+                    const catalog = this._getCatalogItem(groupCode);
+                    const groupTitle = groupCode === 'SIN_ITEM' ? 'EVIDENCIAS SIN ÍTEM ASIGNADO' : `ÍTEM ${groupCode}`;
+                    const groupDetails = [catalog?.descripcion, catalog?.unidad ? `UNIDAD: ${catalog.unidad}` : ''].filter(Boolean).join('  ·  ');
+                    docRows.push(new TableRow({ children: [new TableCell({
+                        columnSpan: 2,
+                        shading: { type: ShadingType.CLEAR, fill: '101820' },
+                        children: [new Paragraph({ children: [new TextRun({ text: groupTitle, bold: true, color: 'CAFD00', size: 18 })], spacing: { before: 80 } }), new Paragraph({ children: [new TextRun({ text: groupDetails, color: 'D1D5DB', size: 13 })], spacing: { after: 80 } })]
+                    })] }));
+                    previousGroup = groupCode;
+                }
                 const cells = [];
 
                 for (let j = 0; j < 2; j++) {
                     const snap = chunk[j];
                     const cellChildren = [];
 
-                    if (snap) {
+                    if (snap && !snap._groupSpacer) {
                         let imgBytes = await LogiNative.getBlobBytes(snap.filename);
                         if (imgBytes) {
                             // v191.9-TITAN-X: Redimensionar antes de meter al Word para evitar cierres
@@ -1224,8 +1347,9 @@ export const ExportModule = {
                             cellChildren.push(new Paragraph({
                                 children: [new ImageRun({ 
                                     data: imgBytes, 
+                                    type: 'jpg',
                                     transformation: { width: 300, height: 180 },
-                                    docProperties: { id: ++drawingId, name: `Picture ${drawingId}` }
+                                    altText: { name: `Foto ${++drawingId}`, description: `Evidencia fotográfica ${drawingId}` }
                                 })],
                                 alignment: AlignmentType.LEFT,
                                 spacing: { before: 400, after: 200 }
@@ -1233,22 +1357,19 @@ export const ExportModule = {
                         }
 
                         // Contenedor de Texto con Borde Izquierdo (Simulando línea negra)
-                        const activityTxt = (snap.actividad || 'GENERAL').toUpperCase();
-                        const descriptionTxt = (snap.descripcion || 'SIN DESCRIPCIÓN').toUpperCase();
+                        const activityTxt = String(snap.actividad || '').trim().toUpperCase();
+                        const descriptionTxt = String(snap.descripcion || '').trim().toUpperCase();
                         const itemName = this._getItemName(activityTxt);
 
                         cellChildren.push(new Paragraph({
-                            children: [new TextRun({ 
-                                text: itemName ? `FOTO ${i + j + 1}: ${activityTxt} - ${itemName}` : `FOTO ${i + j + 1}: ${activityTxt}`, 
-                                bold: true, size: 20 
-                            })],
+                            children: [new TextRun({ text: `FOTO ${i + j + 1}`, bold: true, size: 20 }), ...(activityTxt ? [new TextRun({ text: `  ·  ÍTEM ${activityTxt}${itemName ? ` · ${itemName}` : ''}`, bold: true, size: 18 })] : [])],
                             indent: { left: 240 },
                             border: {
                                 left: { style: BorderStyle.SINGLE, size: 24, space: 10, color: "000000" }
                             }
                         }));
                         cellChildren.push(new Paragraph({
-                            children: [new TextRun({ text: descriptionTxt, size: 16, color: "666666" })],
+                            children: descriptionTxt ? [new TextRun({ text: descriptionTxt, size: 16, color: "666666" })] : [],
                             indent: { left: 240 },
                             spacing: { after: 400 },
                             border: {
@@ -1297,7 +1418,8 @@ export const ExportModule = {
                 },
                 sections: [{
                     properties: { page: { size: { width: 11906, height: 16838 } } }, // A4
-                    headers: { default: new Header({ children: [headerTable, new Paragraph("")] }) },
+                    headers: { default: this._createDocxHeader(project, groupByItem ? 'FICHAS TÉCNICAS POR ÍTEM' : 'REGISTRO DE OBRA') },
+                    footers: { default: this._createDocxFooter() },
                     children: [mainTable, new Paragraph("")],
                 }],
             });
@@ -1312,6 +1434,10 @@ export const ExportModule = {
             console.error("Error DOCX V2:", e);
             alert("Error Word Técnico: " + e.message);
         }
+    },
+
+    async _generateItemDocx(project, filtered, fileName, customResizeWidth) {
+        return this._generateTechnicalDocx(project, filtered, fileName, customResizeWidth, true);
     },
 
     async _drawPhotoSlotV2(doc, page, snap, idx, x, y, slotW, slotH, font, fontBold, rgb, customResizeWidth) {
