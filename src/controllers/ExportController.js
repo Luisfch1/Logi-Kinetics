@@ -695,18 +695,25 @@ export const ExportModule = {
 
         const newPage = () => {
             page = doc.addPage([pageWidth, pageHeight]);
-            this._drawHeaderV2(page, project, null, dateLabel, font, fontBold, rgb, pageWidth, pageHeight, margin);
-            contentY = pageHeight - 88;
+            // Plantilla 3: identidad visual propia, distinta del Registro de obra.
+            page.drawText('LOGI', { x: margin, y: pageHeight - 39, size: 22, font: fontBold, color: rgb(0.03, 0.08, 0.13) });
+            page.drawRectangle({ x: margin + 59, y: pageHeight - 44, width: 1, height: 25, color: rgb(0.15, 0.15, 0.15) });
+            page.drawText('FOTOS POR ÍTEM', { x: margin + 70, y: pageHeight - 38, size: 12, font: fontBold, color: rgb(0.05, 0.05, 0.05) });
+            const projectText = `PROYECTO: ${(project.name || 'S/N').toUpperCase()}`;
+            const dateText = `FECHA: ${dateLabel.toUpperCase()}`;
+            page.drawText(projectText, { x: pageWidth - margin - fontBold.widthOfTextAtSize(projectText, 5.8), y: pageHeight - 31, size: 5.8, font: fontBold, color: rgb(0.35, 0.35, 0.35) });
+            page.drawText(dateText, { x: pageWidth - margin - font.widthOfTextAtSize(dateText, 5.4), y: pageHeight - 42, size: 5.4, font, color: rgb(0.45, 0.45, 0.45) });
+            page.drawRectangle({ x: margin, y: pageHeight - 58, width: pageWidth - margin * 2, height: 1, color: rgb(0.12, 0.12, 0.12) });
+            contentY = pageHeight - 72;
         };
 
         const drawItemHeader = (code, continuation = false) => {
             const catalog = this._getCatalogItem(code);
             const title = code === 'SIN_ITEM' ? 'EVIDENCIAS SIN ÍTEM ASIGNADO' : `ÍTEM ${code}`;
             const details = [catalog?.descripcion, catalog?.unidad ? `UNIDAD: ${catalog.unidad}` : ''].filter(Boolean).join('  ·  ');
-            const accent = this._getAccentRgb();
-            page.drawRectangle({ x: margin, y: contentY - itemHeaderH, width: pageWidth - margin * 2, height: itemHeaderH, color: rgb(0.06, 0.09, 0.12) });
-            page.drawText(continuation ? `${title} · CONTINUACIÓN` : title, { x: margin + 8, y: contentY - 12, size: 8.5, font: fontBold, color: rgb(accent.r, accent.g, accent.b) });
-            if (details) page.drawText(details.substring(0, 110), { x: margin + 8, y: contentY - 23, size: 5.8, font, color: rgb(0.8, 0.84, 0.88) });
+            page.drawRectangle({ x: margin, y: contentY - itemHeaderH, width: pageWidth - margin * 2, height: itemHeaderH, color: rgb(0.92, 0.92, 0.92) });
+            page.drawText(continuation ? `${title} · CONTINUACIÓN` : title, { x: margin + 8, y: contentY - 12, size: 8.5, font: fontBold, color: rgb(0.04, 0.04, 0.04) });
+            if (details) page.drawText(details.substring(0, 110), { x: margin + 8, y: contentY - 23, size: 5.8, font, color: rgb(0.28, 0.28, 0.28) });
             contentY -= itemHeaderH + 5;
         };
 
