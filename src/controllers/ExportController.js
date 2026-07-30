@@ -10,7 +10,7 @@ import { ReportsModule } from './ReportsController.js';
 import { 
     Document, Packer, Paragraph, TextRun, ImageRun, 
     Table, TableRow, TableCell, WidthType, AlignmentType, 
-    Header, Footer, BorderStyle, HeightRule, VerticalAlign, ShadingType, PageNumber
+    Header, Footer, BorderStyle, HeightRule, VerticalAlign, ShadingType, PageNumber, TableLayoutType
 } from 'docx';
 
 export const ExportModule = {
@@ -250,14 +250,16 @@ export const ExportModule = {
 
     _createDocxHeader(project, reportLabel) {
         return new Header({ children: [new Table({
-            width: { size: 10500, type: WidthType.DXA },
+            // Carta con márgenes de 1": 9360 DXA disponibles. Nunca exceder este ancho.
+            width: { size: 9360, type: WidthType.DXA },
+            layout: TableLayoutType.FIXED,
             borders: { top: { style: BorderStyle.SINGLE, size: 20, color: 'CAFD00' }, bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }, left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }, right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }, insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }, insideVertical: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' } },
             rows: [new TableRow({ children: [new TableCell({
-                width: { size: 3000, type: WidthType.DXA },
+                width: { size: 2700, type: WidthType.DXA },
                 shading: { type: ShadingType.CLEAR, fill: '101820' },
                 children: [new Paragraph({ children: [new TextRun({ text: 'LOGI', bold: true, color: 'CAFD00', size: 32 })], spacing: { before: 120, after: 120 } })]
             }), new TableCell({
-                width: { size: 7500, type: WidthType.DXA },
+                width: { size: 6660, type: WidthType.DXA },
                 shading: { type: ShadingType.CLEAR, fill: '101820' },
                 children: [new Paragraph({ children: [new TextRun({ text: (project.name || 'PROYECTO').toUpperCase(), bold: true, color: 'FFFFFF', size: 20 })], alignment: AlignmentType.RIGHT, spacing: { before: 80 } }), new Paragraph({ children: [new TextRun({ text: `${reportLabel} · ${this._getDateLabel().toUpperCase()}`, color: 'B8C2CC', size: 13 })], alignment: AlignmentType.RIGHT, spacing: { after: 100 } })]
             })] })]
@@ -670,39 +672,28 @@ export const ExportModule = {
         const pageHeight = 792;
         const margin = 40;
         const dateLabel = this._getDateLabel();
-        const groups = new Map();
-
-        filtered.forEach(photo => {
-            const key = String(photo.actividad || '').trim().toUpperCase() || 'SIN_ITEM';
-            if (!groups.has(key)) groups.set(key, []);
-            groups.get(key).push(photo);
+        // Mantiene el orden por ítem, pero no desperdicia espacios ni páginas entre ítems.
+        const photos = [...filtered].sort((a, b) => {
+            const itemA = String(a.actividad || '').trim().toUpperCase();
+            const itemB = String(b.actividad || '').trim().toUpperCase();
+            if (itemA !== itemB) return itemA.localeCompare(itemB);
+            return (a.createdAt || 0) - (b.createdAt || 0);
         });
-
         const pages = [];
-        groups.forEach((photos, code) => {
-            for (let index = 0; index < photos.length; index += 4) pages.push({ code, photos: photos.slice(index, index + 4) });
-        });
+        for (let index = 0; index < photos.length; index += 4) pages.push(photos.slice(index, index + 4));
 
         for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
-            const { code, photos } = pages[pageIndex];
+            const pagePhotos = pages[pageIndex];
             const page = doc.addPage([pageWidth, pageHeight]);
             this._drawHeaderV2(page, project, null, dateLabel, font, fontBold, rgb, pageWidth, pageHeight, margin);
 
-            const catalog = this._getCatalogItem(code);
-            const title = code === 'SIN_ITEM' ? 'EVIDENCIAS SIN ÍTEM ASIGNADO' : `ÍTEM ${code}`;
-            const details = [catalog?.descripcion, catalog?.unidad ? `UNIDAD: ${catalog.unidad}` : ''].filter(Boolean).join('  ·  ');
-            const accent = this._getAccentRgb();
-            page.drawRectangle({ x: margin, y: pageHeight - 128, width: pageWidth - margin * 2, height: 34, color: rgb(0.06, 0.09, 0.12) });
-            page.drawText(title, { x: margin + 10, y: pageHeight - 108, size: 10, font: fontBold, color: rgb(accent.r, accent.g, accent.b) });
-            if (details) page.drawText(details.substring(0, 100), { x: margin + 10, y: pageHeight - 121, size: 6.5, font, color: rgb(0.8, 0.84, 0.88) });
-
             const slotW = (pageWidth - margin * 2 - 20) / 2;
             const slotH = 270;
-            for (let index = 0; index < photos.length; index++) {
+            for (let index = 0; index < pagePhotos.length; index++) {
                 const x = margin + (index % 2) * (slotW + 20);
                 const y = pageHeight - 145 - (Math.floor(index / 2) + 1) * slotH;
-                const globalIndex = filtered.indexOf(photos[index]) + 1;
-                await this._drawPhotoSlotV2(doc, page, photos[index], globalIndex, x, y, slotW, slotH, font, fontBold, rgb, customResizeWidth);
+                const globalIndex = photos.indexOf(pagePhotos[index]) + 1;
+                await this._drawPhotoSlotV2(doc, page, pagePhotos[index], globalIndex, x, y, slotW, slotH, font, fontBold, rgb, customResizeWidth);
             }
             page.drawText(`LOGI KINETICS  |  FICHAS TÉCNICAS POR ÍTEM  |  PÁGINA ${pageIndex + 1} DE ${pages.length}`, { x: margin, y: 15, size: 7, font, color: rgb(0.45, 0.45, 0.45) });
         }
@@ -794,7 +785,8 @@ export const ExportModule = {
                 });
                 
                 const desc = (snap.descripcion || 'SIN DESCRIPCIÓN').toUpperCase();
-                const lines = this._wrapText(desc, 50);
+                const description = String(snap.descripcion || '').trim().toUpperCase();
+                const lines = description ? this._wrapText(description, 50) : [];
                 const descStartY = labelY - (labelLines.slice(0, 2).length * 9) - 2;
 
                 lines.slice(0, 2).forEach((line, lIdx) => {
@@ -1145,7 +1137,7 @@ export const ExportModule = {
 
                     cells.push(new TableCell({
                         children: cellChildren,
-                        width: { size: 5250, type: WidthType.DXA },
+                        width: { size: 4680, type: WidthType.DXA },
                         borders: {
                             top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                             bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
@@ -1160,7 +1152,8 @@ export const ExportModule = {
 
             const mainTable = new Table({
                 rows: docRows,
-                width: { size: 10500, type: WidthType.DXA },
+                width: { size: 9360, type: WidthType.DXA },
+                layout: TableLayoutType.FIXED,
                 borders: {
                     top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
                     bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
@@ -1304,10 +1297,9 @@ export const ExportModule = {
                     if (!groups.has(key)) groups.set(key, []);
                     groups.get(key).push(photo);
                 });
-                groups.forEach(group => {
-                    tableItems.push(...group);
-                    if (group.length % 2) tableItems.push({ _groupSpacer: true });
-                });
+                // No agregar celdas de relleno: el siguiente ítem continúa en el
+                // siguiente espacio disponible del documento.
+                groups.forEach(group => tableItems.push(...group));
             } else {
                 tableItems.push(...filtered);
             }
@@ -1348,7 +1340,7 @@ export const ExportModule = {
                                 children: [new ImageRun({ 
                                     data: imgBytes, 
                                     type: 'jpg',
-                                    transformation: { width: 300, height: 180 },
+                                    transformation: { width: 280, height: 168 },
                                     altText: { name: `Foto ${++drawingId}`, description: `Evidencia fotográfica ${drawingId}` }
                                 })],
                                 alignment: AlignmentType.LEFT,
@@ -1382,7 +1374,7 @@ export const ExportModule = {
 
                     cells.push(new TableCell({
                         children: cellChildren,
-                        width: { size: 5250, type: WidthType.DXA },
+                        width: { size: 4680, type: WidthType.DXA },
                         borders: { 
                             top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }, 
                             bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }, 
@@ -1397,7 +1389,8 @@ export const ExportModule = {
 
             const mainTable = new Table({
                 rows: docRows,
-                width: { size: 10500, type: WidthType.DXA },
+                width: { size: 9360, type: WidthType.DXA },
+                layout: TableLayoutType.FIXED,
                 borders: { 
                     top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }, 
                     bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" }, 
@@ -1473,7 +1466,8 @@ export const ExportModule = {
                 });
                 
                 const desc = (snap.descripcion || 'SIN DESCRIPCIÓN').toUpperCase();
-                const lines = this._wrapText(desc, 50);
+                const description = String(snap.descripcion || '').trim().toUpperCase();
+                const lines = description ? this._wrapText(description, 50) : [];
                 const descStartY = textY - (labelLines.slice(0, 2).length * 10) - 2;
 
                 lines.slice(0, 2).forEach((line, lIdx) => {
@@ -1507,7 +1501,9 @@ export const ExportModule = {
 
             this._updateProgress(`RE-GENERANDO PDF (${adaptiveMaxWidth}px)...`);
 
-            if (meta.tmplId === 'Plantilla2.pdf' || meta.tmplId === 'Plantilla3.pdf') {
+            if (meta.tmplId === 'Plantilla3.pdf') {
+                await this._generateItemReport(project, filtered, pdfName, adaptiveMaxWidth);
+            } else if (meta.tmplId === 'Plantilla2.pdf') {
                 await this._generateTechnicalReport(project, filtered, pdfName, adaptiveMaxWidth);
             } else {
                 await this._generateClassicReport(project, filtered, pdfName, adaptiveMaxWidth);
