@@ -672,31 +672,70 @@ export const ExportModule = {
         const pageHeight = 792;
         const margin = 40;
         const dateLabel = this._getDateLabel();
-        // Mantiene el orden por ítem, pero no desperdicia espacios ni páginas entre ítems.
         const photos = [...filtered].sort((a, b) => {
             const itemA = String(a.actividad || '').trim().toUpperCase();
             const itemB = String(b.actividad || '').trim().toUpperCase();
             if (itemA !== itemB) return itemA.localeCompare(itemB);
             return (a.createdAt || 0) - (b.createdAt || 0);
         });
-        const pages = [];
-        for (let index = 0; index < photos.length; index += 4) pages.push(photos.slice(index, index + 4));
 
-        for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
-            const pagePhotos = pages[pageIndex];
-            const page = doc.addPage([pageWidth, pageHeight]);
+        const groups = new Map();
+        photos.forEach(photo => {
+            const code = String(photo.actividad || '').trim().toUpperCase() || 'SIN_ITEM';
+            if (!groups.has(code)) groups.set(code, []);
+            groups.get(code).push(photo);
+        });
+
+        const slotW = (pageWidth - margin * 2 - 20) / 2;
+        const slotH = 190;
+        const itemHeaderH = 30;
+        const footerY = 32;
+        let page;
+        let contentY;
+
+        const newPage = () => {
+            page = doc.addPage([pageWidth, pageHeight]);
             this._drawHeaderV2(page, project, null, dateLabel, font, fontBold, rgb, pageWidth, pageHeight, margin);
+            contentY = pageHeight - 88;
+        };
 
-            const slotW = (pageWidth - margin * 2 - 20) / 2;
-            const slotH = 270;
-            for (let index = 0; index < pagePhotos.length; index++) {
-                const x = margin + (index % 2) * (slotW + 20);
-                const y = pageHeight - 145 - (Math.floor(index / 2) + 1) * slotH;
-                const globalIndex = photos.indexOf(pagePhotos[index]) + 1;
-                await this._drawPhotoSlotV2(doc, page, pagePhotos[index], globalIndex, x, y, slotW, slotH, font, fontBold, rgb, customResizeWidth);
+        const drawItemHeader = (code, continuation = false) => {
+            const catalog = this._getCatalogItem(code);
+            const title = code === 'SIN_ITEM' ? 'EVIDENCIAS SIN ÍTEM ASIGNADO' : `ÍTEM ${code}`;
+            const details = [catalog?.descripcion, catalog?.unidad ? `UNIDAD: ${catalog.unidad}` : ''].filter(Boolean).join('  ·  ');
+            const accent = this._getAccentRgb();
+            page.drawRectangle({ x: margin, y: contentY - itemHeaderH, width: pageWidth - margin * 2, height: itemHeaderH, color: rgb(0.06, 0.09, 0.12) });
+            page.drawText(continuation ? `${title} · CONTINUACIÓN` : title, { x: margin + 8, y: contentY - 12, size: 8.5, font: fontBold, color: rgb(accent.r, accent.g, accent.b) });
+            if (details) page.drawText(details.substring(0, 110), { x: margin + 8, y: contentY - 23, size: 5.8, font, color: rgb(0.8, 0.84, 0.88) });
+            contentY -= itemHeaderH + 5;
+        };
+
+        newPage();
+        for (const [code, groupPhotos] of groups) {
+            if (contentY - itemHeaderH - slotH < footerY) newPage();
+            drawItemHeader(code);
+
+            for (let index = 0; index < groupPhotos.length; index += 2) {
+                if (contentY - slotH < footerY) {
+                    newPage();
+                    drawItemHeader(code, true);
+                }
+
+                const row = groupPhotos.slice(index, index + 2);
+                for (let column = 0; column < row.length; column++) {
+                    const photo = row[column];
+                    const x = margin + column * (slotW + 20);
+                    const globalIndex = photos.indexOf(photo) + 1;
+                    await this._drawPhotoSlotV2(doc, page, photo, globalIndex, x, contentY - slotH, slotW, slotH, font, fontBold, rgb, customResizeWidth);
+                }
+                contentY -= slotH + 5;
             }
-            page.drawText(`LOGI KINETICS  |  FICHAS TÉCNICAS POR ÍTEM  |  PÁGINA ${pageIndex + 1} DE ${pages.length}`, { x: margin, y: 15, size: 7, font, color: rgb(0.45, 0.45, 0.45) });
         }
+
+        const pages = doc.getPages();
+        pages.forEach((reportPage, pageIndex) => {
+            reportPage.drawText(`LOGI KINETICS  |  FICHAS TÉCNICAS POR ÍTEM  |  PÁGINA ${pageIndex + 1} DE ${pages.length}`, { x: margin, y: 15, size: 7, font, color: rgb(0.45, 0.45, 0.45) });
+        });
 
         const blob = new Blob([await doc.save()], { type: 'application/pdf' });
         await LogiNative.shareBlob(blob, fileName || `Fichas_Tecnicas_${project.name || 'Logi'}_${Date.now()}.pdf`, project.id, skipShare);

@@ -21,7 +21,7 @@ import { LogiNative } from './core/capacitor-bridge.js';
 import { DebugLogger } from './utils/DebugLogger.js';
 import { defineCustomElements } from '@ionic/pwa-elements/loader';
 
-const APP_VERSION = '0.0.9';
+const APP_VERSION = '0.0.10';
 
 // Inicializar elementos PWA para soporte de cámara/galería en Web
 defineCustomElements(window);

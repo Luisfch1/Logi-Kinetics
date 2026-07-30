@@ -1,4 +1,4 @@
-const CACHE_NAME = 'logi-kinetics-cache-v9';
+const CACHE_NAME = 'logi-kinetics-cache-v10';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
