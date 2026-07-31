@@ -670,8 +670,17 @@ export const ExportModule = {
         const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
         const pageWidth = 612;
         const pageHeight = 792;
-        const margin = 54;
+        const margin = 40;
         const dateLabel = this._getDateLabel();
+        let logoImg = null;
+        if (this.config.logo) {
+            try {
+                const logoBytes = this.config.logo.startsWith('data:')
+                    ? Uint8Array.from(atob(this.config.logo.split(',')[1]), c => c.charCodeAt(0))
+                    : await LogiNative.getBlobBytes(this.config.logo);
+                if (logoBytes) logoImg = await doc.embedJpg(logoBytes);
+            } catch (error) { console.warn('Logo no cargado en fichas técnicas', error); }
+        }
         const photos = [...filtered].sort((a, b) => {
             const itemA = String(a.actividad || '').trim().toUpperCase();
             const itemB = String(b.actividad || '').trim().toUpperCase();
@@ -687,24 +696,22 @@ export const ExportModule = {
         });
 
         const tableW = pageWidth - margin * 2;
-        const codeW = 68;
+        const codeW = 74;
         const unitW = 34;
-        const headerH = 24;
-        const photoRowH = 188;
-        const noteH = 22;
+        const headerH = 25;
+        const photoRowH = 165;
+        const noteH = 24;
         const tableH = headerH + photoRowH + noteH;
-        const footerY = 32;
+        const footerY = 34;
         let page;
         let contentY;
 
         const newPage = () => {
             page = doc.addPage([pageWidth, pageHeight]);
-            // La identidad queda fuera de las fichas para que puedan copiarse limpias.
-            page.drawText('FICHAS TECNICAS', { x: margin, y: pageHeight - 35, size: 9, font: fontBold, color: rgb(0.18, 0.18, 0.18) });
-            const context = `${(project.name || 'S/N').toUpperCase()} | ${dateLabel.toUpperCase()}`;
-            page.drawText(context, { x: pageWidth - margin - font.widthOfTextAtSize(context, 6), y: pageHeight - 34, size: 6, font, color: rgb(0.42, 0.42, 0.42) });
-            page.drawLine({ start: { x: margin, y: pageHeight - 44 }, end: { x: pageWidth - margin, y: pageHeight - 44 }, thickness: 0.6, color: rgb(0.55, 0.55, 0.55) });
-            contentY = pageHeight - 62;
+            // Misma cara corporativa de las demás plantillas; la tabla queda
+            // independiente y neutral para poder copiarla a otros formatos.
+            this._drawHeader(page, project, logoImg, dateLabel, font, fontBold, rgb, pageWidth, pageHeight, margin);
+            contentY = pageHeight - 82;
         };
 
         const drawFicha = async (code, pair, firstPhotoNumber) => {
@@ -715,17 +722,17 @@ export const ExportModule = {
             const yTop = contentY;
             const yHeader = yTop - headerH;
             const yPhotos = yHeader - photoRowH;
-            const line = { thickness: 0.7, color: rgb(0.28, 0.28, 0.28) };
+            const line = { thickness: 0.85, color: rgb(0.30, 0.32, 0.34) };
 
-            page.drawRectangle({ x: margin, y: yHeader, width: tableW, height: headerH, color: rgb(0.965, 0.965, 0.965), borderColor: rgb(0.28, 0.28, 0.28), borderWidth: 0.7 });
-            page.drawRectangle({ x: margin, y: yPhotos, width: tableW, height: photoRowH, borderColor: rgb(0.28, 0.28, 0.28), borderWidth: 0.7 });
-            page.drawRectangle({ x: margin, y: yPhotos - noteH, width: tableW, height: noteH, borderColor: rgb(0.28, 0.28, 0.28), borderWidth: 0.7 });
+            page.drawRectangle({ x: margin, y: yHeader, width: tableW, height: headerH, color: rgb(0.94, 0.95, 0.95), borderColor: rgb(0.30, 0.32, 0.34), borderWidth: 0.85 });
+            page.drawRectangle({ x: margin, y: yPhotos, width: tableW, height: photoRowH, borderColor: rgb(0.30, 0.32, 0.34), borderWidth: 0.85 });
+            page.drawRectangle({ x: margin, y: yPhotos - noteH, width: tableW, height: noteH, color: rgb(0.985, 0.985, 0.985), borderColor: rgb(0.30, 0.32, 0.34), borderWidth: 0.85 });
             page.drawLine({ start: { x: margin + codeW, y: yHeader }, end: { x: margin + codeW, y: yTop }, ...line });
             page.drawLine({ start: { x: margin + tableW - unitW, y: yHeader }, end: { x: margin + tableW - unitW, y: yTop }, ...line });
             page.drawLine({ start: { x: margin + tableW / 2, y: yPhotos }, end: { x: margin + tableW / 2, y: yHeader }, ...line });
-            page.drawText(itemText, { x: margin + 7, y: yTop - 15, size: 7.4, font: fontBold, color: rgb(0.12, 0.12, 0.12) });
-            page.drawText(title.substring(0, 92), { x: margin + codeW + 8, y: yTop - 15, size: 7.6, font: fontBold, color: rgb(0.12, 0.12, 0.12) });
-            if (unit) page.drawText(unit, { x: margin + tableW - unitW + (unitW - font.widthOfTextAtSize(unit, 7)) / 2, y: yTop - 15, size: 7, font, color: rgb(0.18, 0.18, 0.18) });
+            page.drawText(itemText, { x: margin + 7, y: yTop - 16, size: 7.7, font: fontBold, color: rgb(0.10, 0.12, 0.14) });
+            page.drawText(title.substring(0, 92), { x: margin + codeW + 9, y: yTop - 16, size: 7.9, font: fontBold, color: rgb(0.10, 0.12, 0.14) });
+            if (unit) page.drawText(unit, { x: margin + tableW - unitW + (unitW - font.widthOfTextAtSize(unit, 7.2)) / 2, y: yTop - 16, size: 7.2, font: fontBold, color: rgb(0.18, 0.18, 0.18) });
 
             for (let column = 0; column < 2; column++) {
                 const photo = pair[column];
@@ -736,19 +743,30 @@ export const ExportModule = {
                     if (bytes) {
                         bytes = await this._processImage(bytes, customResizeWidth || 1024, this.config.whatsappIncludeLogo, this.config.whatsappIncludeTimestamp, photo, false, firstPhotoNumber + column);
                         const image = await doc.embedJpg(bytes);
-                        const maxW = tableW / 2 - 14;
-                        const maxH = photoRowH - 22;
-                        const scale = Math.min(maxW / image.width, maxH / image.height);
-                        const drawW = image.width * scale;
-                        const drawH = image.height * scale;
-                        page.drawImage(image, { x: cellX + (tableW / 2 - drawW) / 2, y: yPhotos + (photoRowH - drawH) / 2, width: drawW, height: drawH });
+                        // Marco idéntico para todas las fotos: el orden visual
+                        // no cambia aunque la captura original sea vertical.
+                        const drawW = tableW / 2 - 12;
+                        const drawH = photoRowH - 14;
+                        const drawX = cellX + 6;
+                        const drawY = yPhotos + 7;
+                        page.drawRectangle({ x: drawX - 0.7, y: drawY - 0.7, width: drawW + 1.4, height: drawH + 1.4, color: rgb(0.89, 0.90, 0.90) });
+                        page.drawImage(image, { x: drawX, y: drawY, width: drawW, height: drawH });
+
+                        // El número es una etiqueta de documento, no texto perdido.
+                        const tagW = 43;
+                        const tagH = 18;
+                        const tagX = drawX + 6;
+                        const tagY = drawY + drawH - tagH - 6;
+                        page.drawRectangle({ x: tagX, y: tagY, width: tagW, height: tagH, color: rgb(0.06, 0.09, 0.12), opacity: 0.92 });
+                        page.drawText(String(firstPhotoNumber + column).padStart(2, '0'), { x: tagX + 5, y: tagY + 5, size: 9, font: fontBold, color: rgb(0.79, 0.99, 0) });
+                        page.drawText('FOTO', { x: tagX + 22, y: tagY + 6, size: 5.4, font: fontBold, color: rgb(1, 1, 1) });
                     }
                 } catch (error) { console.warn('No fue posible agregar foto a ficha', error); }
-                page.drawText(`FOTO ${firstPhotoNumber + column}`, { x: cellX + 8, y: yHeader - 14, size: 6.5, font, color: rgb(0.35, 0.35, 0.35) });
             }
             const note = pair.map(photo => String(photo?.descripcion || '').trim()).filter(Boolean).join(' | ') || ' ';
-            page.drawText(this._wrapText(note, 118)[0] || ' ', { x: margin + 7, y: yPhotos - 15, size: 7, font, color: rgb(0.16, 0.16, 0.16) });
-            contentY -= tableH + 16;
+            page.drawText('OBSERVACIÓN:', { x: margin + 7, y: yPhotos - 16, size: 6.2, font: fontBold, color: rgb(0.36, 0.38, 0.40) });
+            page.drawText(this._wrapText(note, 105)[0] || ' ', { x: margin + 66, y: yPhotos - 16, size: 7.1, font, color: rgb(0.14, 0.15, 0.16) });
+            contentY -= tableH + 10;
         };
 
         newPage();
