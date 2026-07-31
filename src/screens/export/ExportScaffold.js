@@ -70,7 +70,7 @@ export const ExportScaffold = {
         const templates = [
             { id: 'Plantilla1.pdf', name: 'BITÁCORA VISUAL', preview: './templates/previews/CLÁSICA_mockup.png' },
             { id: 'Plantilla2.pdf', name: 'REGISTRO DE OBRA', preview: './templates/previews/INFORME_TÉCNICO_mockup.png' },
-            { id: 'Plantilla3.pdf', name: 'FICHAS TÉCNICAS', preview: './templates/previews/FOTOS_POR_ÍTEM_mockup.png' }
+            { id: 'Plantilla3.pdf', name: 'FICHAS TÉCNICAS', preview: './templates/previews/FICHAS_TECNICAS_mockup.svg' }
         ];
 
         return `

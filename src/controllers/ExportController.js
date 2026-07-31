@@ -670,7 +670,7 @@ export const ExportModule = {
         const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
         const pageWidth = 612;
         const pageHeight = 792;
-        const margin = 40;
+        const margin = 54;
         const dateLabel = this._getDateLabel();
         const photos = [...filtered].sort((a, b) => {
             const itemA = String(a.actividad || '').trim().toUpperCase();
@@ -686,56 +686,78 @@ export const ExportModule = {
             groups.get(code).push(photo);
         });
 
-        const slotW = (pageWidth - margin * 2 - 20) / 2;
-        const slotH = 190;
-        const itemHeaderH = 30;
+        const tableW = pageWidth - margin * 2;
+        const codeW = 68;
+        const unitW = 34;
+        const headerH = 24;
+        const photoRowH = 188;
+        const noteH = 22;
+        const tableH = headerH + photoRowH + noteH;
         const footerY = 32;
         let page;
         let contentY;
 
         const newPage = () => {
             page = doc.addPage([pageWidth, pageHeight]);
-            // Plantilla 3: identidad visual propia, distinta del Registro de obra.
-            page.drawText('LOGI', { x: margin, y: pageHeight - 39, size: 22, font: fontBold, color: rgb(0.03, 0.08, 0.13) });
-            page.drawRectangle({ x: margin + 59, y: pageHeight - 44, width: 1, height: 25, color: rgb(0.15, 0.15, 0.15) });
-            page.drawText('FOTOS POR ÍTEM', { x: margin + 70, y: pageHeight - 38, size: 12, font: fontBold, color: rgb(0.05, 0.05, 0.05) });
-            const projectText = `PROYECTO: ${(project.name || 'S/N').toUpperCase()}`;
-            const dateText = `FECHA: ${dateLabel.toUpperCase()}`;
-            page.drawText(projectText, { x: pageWidth - margin - fontBold.widthOfTextAtSize(projectText, 5.8), y: pageHeight - 31, size: 5.8, font: fontBold, color: rgb(0.35, 0.35, 0.35) });
-            page.drawText(dateText, { x: pageWidth - margin - font.widthOfTextAtSize(dateText, 5.4), y: pageHeight - 42, size: 5.4, font, color: rgb(0.45, 0.45, 0.45) });
-            page.drawRectangle({ x: margin, y: pageHeight - 58, width: pageWidth - margin * 2, height: 1, color: rgb(0.12, 0.12, 0.12) });
-            contentY = pageHeight - 72;
+            // La identidad queda fuera de las fichas para que puedan copiarse limpias.
+            page.drawText('FICHAS TECNICAS', { x: margin, y: pageHeight - 35, size: 9, font: fontBold, color: rgb(0.18, 0.18, 0.18) });
+            const context = `${(project.name || 'S/N').toUpperCase()} | ${dateLabel.toUpperCase()}`;
+            page.drawText(context, { x: pageWidth - margin - font.widthOfTextAtSize(context, 6), y: pageHeight - 34, size: 6, font, color: rgb(0.42, 0.42, 0.42) });
+            page.drawLine({ start: { x: margin, y: pageHeight - 44 }, end: { x: pageWidth - margin, y: pageHeight - 44 }, thickness: 0.6, color: rgb(0.55, 0.55, 0.55) });
+            contentY = pageHeight - 62;
         };
 
-        const drawItemHeader = (code, continuation = false) => {
+        const drawFicha = async (code, pair, firstPhotoNumber) => {
             const catalog = this._getCatalogItem(code);
-            const title = code === 'SIN_ITEM' ? 'EVIDENCIAS SIN ÍTEM ASIGNADO' : `ÍTEM ${code}`;
-            const details = [catalog?.descripcion, catalog?.unidad ? `UNIDAD: ${catalog.unidad}` : ''].filter(Boolean).join('  ·  ');
-            page.drawRectangle({ x: margin, y: contentY - itemHeaderH, width: pageWidth - margin * 2, height: itemHeaderH, color: rgb(0.92, 0.92, 0.92) });
-            page.drawText(continuation ? `${title} · CONTINUACIÓN` : title, { x: margin + 8, y: contentY - 12, size: 8.5, font: fontBold, color: rgb(0.04, 0.04, 0.04) });
-            if (details) page.drawText(details.substring(0, 110), { x: margin + 8, y: contentY - 23, size: 5.8, font, color: rgb(0.28, 0.28, 0.28) });
-            contentY -= itemHeaderH + 5;
+            const itemText = code === 'SIN_ITEM' ? 'SIN ITEM' : `ITEM ${code}`;
+            const title = String(catalog?.descripcion || 'EVIDENCIA FOTOGRAFICA').toUpperCase();
+            const unit = String(catalog?.unidad || '').toUpperCase();
+            const yTop = contentY;
+            const yHeader = yTop - headerH;
+            const yPhotos = yHeader - photoRowH;
+            const line = { thickness: 0.7, color: rgb(0.28, 0.28, 0.28) };
+
+            page.drawRectangle({ x: margin, y: yHeader, width: tableW, height: headerH, color: rgb(0.965, 0.965, 0.965), borderColor: rgb(0.28, 0.28, 0.28), borderWidth: 0.7 });
+            page.drawRectangle({ x: margin, y: yPhotos, width: tableW, height: photoRowH, borderColor: rgb(0.28, 0.28, 0.28), borderWidth: 0.7 });
+            page.drawRectangle({ x: margin, y: yPhotos - noteH, width: tableW, height: noteH, borderColor: rgb(0.28, 0.28, 0.28), borderWidth: 0.7 });
+            page.drawLine({ start: { x: margin + codeW, y: yHeader }, end: { x: margin + codeW, y: yTop }, ...line });
+            page.drawLine({ start: { x: margin + tableW - unitW, y: yHeader }, end: { x: margin + tableW - unitW, y: yTop }, ...line });
+            page.drawLine({ start: { x: margin + tableW / 2, y: yPhotos }, end: { x: margin + tableW / 2, y: yHeader }, ...line });
+            page.drawText(itemText, { x: margin + 7, y: yTop - 15, size: 7.4, font: fontBold, color: rgb(0.12, 0.12, 0.12) });
+            page.drawText(title.substring(0, 92), { x: margin + codeW + 8, y: yTop - 15, size: 7.6, font: fontBold, color: rgb(0.12, 0.12, 0.12) });
+            if (unit) page.drawText(unit, { x: margin + tableW - unitW + (unitW - font.widthOfTextAtSize(unit, 7)) / 2, y: yTop - 15, size: 7, font, color: rgb(0.18, 0.18, 0.18) });
+
+            for (let column = 0; column < 2; column++) {
+                const photo = pair[column];
+                const cellX = margin + column * (tableW / 2);
+                if (!photo) continue;
+                try {
+                    let bytes = await LogiNative.getBlobBytes(photo.filename);
+                    if (bytes) {
+                        bytes = await this._processImage(bytes, customResizeWidth || 1024, this.config.whatsappIncludeLogo, this.config.whatsappIncludeTimestamp, photo, false, firstPhotoNumber + column);
+                        const image = await doc.embedJpg(bytes);
+                        const maxW = tableW / 2 - 14;
+                        const maxH = photoRowH - 22;
+                        const scale = Math.min(maxW / image.width, maxH / image.height);
+                        const drawW = image.width * scale;
+                        const drawH = image.height * scale;
+                        page.drawImage(image, { x: cellX + (tableW / 2 - drawW) / 2, y: yPhotos + (photoRowH - drawH) / 2, width: drawW, height: drawH });
+                    }
+                } catch (error) { console.warn('No fue posible agregar foto a ficha', error); }
+                page.drawText(`FOTO ${firstPhotoNumber + column}`, { x: cellX + 8, y: yHeader - 14, size: 6.5, font, color: rgb(0.35, 0.35, 0.35) });
+            }
+            const note = pair.map(photo => String(photo?.descripcion || '').trim()).filter(Boolean).join(' | ') || ' ';
+            page.drawText(this._wrapText(note, 118)[0] || ' ', { x: margin + 7, y: yPhotos - 15, size: 7, font, color: rgb(0.16, 0.16, 0.16) });
+            contentY -= tableH + 16;
         };
 
         newPage();
         for (const [code, groupPhotos] of groups) {
-            if (contentY - itemHeaderH - slotH < footerY) newPage();
-            drawItemHeader(code);
-
             for (let index = 0; index < groupPhotos.length; index += 2) {
-                if (contentY - slotH < footerY) {
+                if (contentY - tableH < footerY) {
                     newPage();
-                    drawItemHeader(code, true);
                 }
-
-                const row = groupPhotos.slice(index, index + 2);
-                for (let column = 0; column < row.length; column++) {
-                    const photo = row[column];
-                    const x = margin + column * (slotW + 20);
-                    const globalIndex = photos.indexOf(photo) + 1;
-                    await this._drawPhotoSlotV2(doc, page, photo, globalIndex, x, contentY - slotH, slotW, slotH, font, fontBold, rgb, customResizeWidth);
-                }
-                contentY -= slotH + 5;
+                await drawFicha(code, groupPhotos.slice(index, index + 2), photos.indexOf(groupPhotos[index]) + 1);
             }
         }
 
@@ -1476,7 +1498,100 @@ export const ExportModule = {
     },
 
     async _generateItemDocx(project, filtered, fileName, customResizeWidth) {
-        return this._generateTechnicalDocx(project, filtered, fileName, customResizeWidth, true);
+        try {
+            const photos = [...filtered].sort((a, b) => {
+                const itemA = String(a.actividad || '').trim().toUpperCase();
+                const itemB = String(b.actividad || '').trim().toUpperCase();
+                return itemA === itemB ? (a.createdAt || 0) - (b.createdAt || 0) : itemA.localeCompare(itemB);
+            });
+            const groups = new Map();
+            photos.forEach(photo => {
+                const code = String(photo.actividad || '').trim().toUpperCase() || 'SIN_ITEM';
+                if (!groups.has(code)) groups.set(code, []);
+                groups.get(code).push(photo);
+            });
+
+            const thin = { style: BorderStyle.SINGLE, size: 6, color: '5B5B5B' };
+            const allBorders = { top: thin, bottom: thin, left: thin, right: thin, insideHorizontal: thin, insideVertical: thin };
+            const children = [];
+            let drawingId = 0;
+            let photoNumber = 0;
+
+            for (const [code, groupPhotos] of groups) {
+                const catalog = this._getCatalogItem(code);
+                const itemText = code === 'SIN_ITEM' ? 'SIN ITEM' : `ITEM ${code}`;
+                const title = String(catalog?.descripcion || 'EVIDENCIA FOTOGRAFICA').toUpperCase();
+                const unit = String(catalog?.unidad || '').toUpperCase();
+
+                for (let index = 0; index < groupPhotos.length; index += 2) {
+                    const pair = groupPhotos.slice(index, index + 2);
+                    const cells = [];
+                    for (let column = 0; column < 2; column++) {
+                        const photo = pair[column];
+                        const photoChildren = [];
+                        if (photo) {
+                            photoNumber++;
+                            let bytes = await LogiNative.getBlobBytes(photo.filename);
+                            if (bytes) {
+                                bytes = await this._processImage(bytes, customResizeWidth || 1024, this.config.whatsappIncludeLogo, this.config.whatsappIncludeTimestamp, photo, false, photoNumber);
+                                photoChildren.push(new Paragraph({
+                                    children: [new ImageRun({ data: bytes, type: 'jpg', transformation: { width: 262, height: 158 }, altText: { name: `Foto ${++drawingId}`, description: `Evidencia fotografica ${drawingId}` } })],
+                                    alignment: AlignmentType.CENTER,
+                                    spacing: { before: 80, after: 40 }
+                                }));
+                            }
+                            photoChildren.push(new Paragraph({ children: [new TextRun({ text: `FOTO ${photoNumber}`, size: 13, color: '555555' })], alignment: AlignmentType.LEFT, spacing: { after: 70 } }));
+                        } else {
+                            photoChildren.push(new Paragraph(''));
+                        }
+                        cells.push(new TableCell({
+                            children: photoChildren,
+                            width: { size: 4680, type: WidthType.DXA },
+                            verticalAlign: VerticalAlign.CENTER,
+                            margins: { top: 80, bottom: 80, left: 120, right: 120 },
+                            borders: { top: thin, bottom: thin, left: thin, right: thin }
+                        }));
+                    }
+                    const note = pair.map(photo => String(photo?.descripcion || '').trim()).filter(Boolean).join(' | ') || ' ';
+                    const ficha = new Table({
+                        width: { size: 9360, type: WidthType.DXA },
+                        layout: TableLayoutType.FIXED,
+                        borders: allBorders,
+                        rows: [
+                            new TableRow({ children: [
+                                new TableCell({ width: { size: 1300, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, fill: 'F4F4F4' }, children: [new Paragraph({ children: [new TextRun({ text: itemText, bold: true, size: 14 })] })], margins: { top: 70, bottom: 70, left: 100, right: 80 }, borders: { top: thin, bottom: thin, left: thin, right: thin } }),
+                                new TableCell({ width: { size: 7260, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, fill: 'F4F4F4' }, children: [new Paragraph({ children: [new TextRun({ text: title, bold: true, size: 14 })] })], margins: { top: 70, bottom: 70, left: 110, right: 80 }, borders: { top: thin, bottom: thin, left: thin, right: thin } }),
+                                new TableCell({ width: { size: 800, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, fill: 'F4F4F4' }, children: [new Paragraph({ children: [new TextRun({ text: unit, size: 14 })], alignment: AlignmentType.CENTER })], margins: { top: 70, bottom: 70, left: 60, right: 60 }, borders: { top: thin, bottom: thin, left: thin, right: thin } })
+                            ] }),
+                            new TableRow({ children: [new TableCell({
+                                columnSpan: 3,
+                                children: [new Table({ width: { size: 9360, type: WidthType.DXA }, layout: TableLayoutType.FIXED, borders: allBorders, rows: [new TableRow({ children: cells })] })],
+                                margins: { top: 0, bottom: 0, left: 0, right: 0 },
+                                borders: { top: thin, bottom: thin, left: thin, right: thin }
+                            })] }),
+                            new TableRow({ children: [new TableCell({ columnSpan: 3, children: [new Paragraph({ children: [new TextRun({ text: note, size: 14, color: '333333' })], spacing: { before: 50, after: 50 } })], margins: { top: 50, bottom: 50, left: 110, right: 110 }, borders: { top: thin, bottom: thin, left: thin, right: thin } })] })
+                        ]
+                    });
+                    children.push(ficha, new Paragraph({ spacing: { after: 180 } }));
+                }
+            }
+
+            const doc = new Document({
+                styles: { default: { document: { run: { font: 'Aptos', size: 20 } } } },
+                sections: [{
+                    properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 900, right: 1270, bottom: 900, left: 1270 } } },
+                    headers: { default: new Header({ children: [new Paragraph({ children: [new TextRun({ text: `FICHAS TECNICAS  |  ${(project.name || 'S/N').toUpperCase()}  |  ${this._getDateLabel().toUpperCase()}`, size: 13, color: '666666' })], alignment: AlignmentType.RIGHT, border: { bottom: thin } })] }) },
+                    footers: { default: new Footer({ children: [new Paragraph({ children: [new TextRun({ text: 'FICHAS TECNICAS  |  PAGINA ', size: 12, color: '777777' }), new TextRun({ children: [PageNumber.CURRENT], size: 12, color: '777777' })], alignment: AlignmentType.CENTER })] }) },
+                    children
+                }]
+            });
+            this._updateProgress('EMPAQUETANDO WORD...');
+            const blob = await Packer.toBlob(doc);
+            await LogiNative.shareBlob(blob, fileName || `Fichas_Tecnicas_${project.name || 'Logi'}_${Date.now()}.docx`, project.id);
+        } catch (e) {
+            console.error('Error DOCX Fichas:', e);
+            alert('Error Word Fichas: ' + e.message);
+        }
     },
 
     async _drawPhotoSlotV2(doc, page, snap, idx, x, y, slotW, slotH, font, fontBold, rgb, customResizeWidth) {
