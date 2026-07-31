@@ -760,7 +760,7 @@ export const ExportModule = {
                         const tagY = drawY + drawH - tagH - 6;
                         page.drawRectangle({ x: tagX, y: tagY, width: tagW, height: tagH, color: rgb(0.06, 0.09, 0.12), opacity: 0.92 });
                         page.drawText('FOTO', { x: tagX + 5, y: tagY + 6, size: 5.4, font: fontBold, color: rgb(1, 1, 1) });
-                        page.drawText(String(firstPhotoNumber + column).padStart(2, '0'), { x: tagX + 22, y: tagY + 5, size: 9, font: fontBold, color: rgb(0.79, 0.99, 0) });
+                        page.drawText(String(firstPhotoNumber + column), { x: tagX + 24, y: tagY + 5, size: 9, font: fontBold, color: rgb(0.79, 0.99, 0) });
                     }
                 } catch (error) { console.warn('No fue posible agregar foto a ficha', error); }
             }
@@ -1565,7 +1565,7 @@ export const ExportModule = {
                                 }));
                             }
                             photoChildren.push(new Paragraph({
-                                children: [new TextRun({ text: ` FOTO ${String(photoNumber).padStart(2, '0')} `, bold: true, size: 15, color: '1D252B', shading: { type: ShadingType.CLEAR, fill: 'E7ECEE' } })],
+                                children: [new TextRun({ text: ` FOTO ${photoNumber} `, bold: true, size: 15, color: '1D252B', shading: { type: ShadingType.CLEAR, fill: 'E7ECEE' } })],
                                 alignment: AlignmentType.LEFT,
                                 spacing: { after: 70 }
                             }));
