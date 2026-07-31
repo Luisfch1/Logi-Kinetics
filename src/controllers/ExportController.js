@@ -256,11 +256,11 @@ export const ExportModule = {
             borders: { top: { style: BorderStyle.SINGLE, size: 20, color: 'CAFD00' }, bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }, left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }, right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }, insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }, insideVertical: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' } },
             rows: [new TableRow({ children: [new TableCell({
                 width: { size: 2700, type: WidthType.DXA },
-                shading: { type: ShadingType.CLEAR, fill: '101820' },
+                shading: { type: ShadingType.CLEAR, fill: '071A33' },
                 children: [new Paragraph({ children: [new TextRun({ text: 'LOGI', bold: true, color: 'CAFD00', size: 32 })], spacing: { before: 120, after: 120 } })]
             }), new TableCell({
                 width: { size: 6660, type: WidthType.DXA },
-                shading: { type: ShadingType.CLEAR, fill: '101820' },
+                shading: { type: ShadingType.CLEAR, fill: '071A33' },
                 children: [new Paragraph({ children: [new TextRun({ text: (project.name || 'PROYECTO').toUpperCase(), bold: true, color: 'FFFFFF', size: 20 })], alignment: AlignmentType.RIGHT, spacing: { before: 80 } }), new Paragraph({ children: [new TextRun({ text: `${reportLabel} · ${this._getDateLabel().toUpperCase()}`, color: 'B8C2CC', size: 13 })], alignment: AlignmentType.RIGHT, spacing: { after: 100 } })]
             })] })]
         }), new Paragraph('')] });
@@ -570,7 +570,8 @@ export const ExportModule = {
 
     _drawHeader(page, project, logoImg, dateLabel, fontNormal, fontBold, rgb, w, h, m) {
         const acc = this._getAccentRgb();
-        page.drawRectangle({ x: 0, y: h - 68, width: w, height: 68, color: rgb(0.06, 0.09, 0.12) });
+        // Azul marino frío: conserva la identidad Logi sin competir con el verde neón.
+        page.drawRectangle({ x: 0, y: h - 68, width: w, height: 68, color: rgb(0.027, 0.102, 0.200) });
         page.drawRectangle({ x: 0, y: h - 5, width: w, height: 5, color: rgb(acc.r, acc.g, acc.b) });
         page.drawText("LOGI", { x: m, y: h - 35, size: 18, font: fontBold, color: rgb(acc.r, acc.g, acc.b) });
         const projectName = (project.name || "S/N").toUpperCase();
@@ -758,8 +759,8 @@ export const ExportModule = {
                         const tagX = drawX + 6;
                         const tagY = drawY + drawH - tagH - 6;
                         page.drawRectangle({ x: tagX, y: tagY, width: tagW, height: tagH, color: rgb(0.06, 0.09, 0.12), opacity: 0.92 });
-                        page.drawText(String(firstPhotoNumber + column).padStart(2, '0'), { x: tagX + 5, y: tagY + 5, size: 9, font: fontBold, color: rgb(0.79, 0.99, 0) });
-                        page.drawText('FOTO', { x: tagX + 22, y: tagY + 6, size: 5.4, font: fontBold, color: rgb(1, 1, 1) });
+                        page.drawText('FOTO', { x: tagX + 5, y: tagY + 6, size: 5.4, font: fontBold, color: rgb(1, 1, 1) });
+                        page.drawText(String(firstPhotoNumber + column).padStart(2, '0'), { x: tagX + 22, y: tagY + 5, size: 9, font: fontBold, color: rgb(0.79, 0.99, 0) });
                     }
                 } catch (error) { console.warn('No fue posible agregar foto a ficha', error); }
             }
@@ -1529,8 +1530,13 @@ export const ExportModule = {
                 groups.get(code).push(photo);
             });
 
-            const thin = { style: BorderStyle.SINGLE, size: 6, color: '5B5B5B' };
+            // Un solo sistema de bordes a nivel de tabla: evita las líneas
+            // dobles que Word produce cuando el contenedor y la tabla interna
+            // intentan dibujar el mismo borde.
+            const thin = { style: BorderStyle.SINGLE, size: 8, color: '616A70' };
+            const noBorder = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
             const allBorders = { top: thin, bottom: thin, left: thin, right: thin, insideHorizontal: thin, insideVertical: thin };
+            const photoGridBorders = { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder, insideHorizontal: noBorder, insideVertical: thin };
             const children = [];
             let drawingId = 0;
             let photoNumber = 0;
@@ -1558,7 +1564,11 @@ export const ExportModule = {
                                     spacing: { before: 80, after: 40 }
                                 }));
                             }
-                            photoChildren.push(new Paragraph({ children: [new TextRun({ text: `FOTO ${photoNumber}`, size: 13, color: '555555' })], alignment: AlignmentType.LEFT, spacing: { after: 70 } }));
+                            photoChildren.push(new Paragraph({
+                                children: [new TextRun({ text: ` FOTO ${String(photoNumber).padStart(2, '0')} `, bold: true, size: 15, color: '1D252B', shading: { type: ShadingType.CLEAR, fill: 'E7ECEE' } })],
+                                alignment: AlignmentType.LEFT,
+                                spacing: { after: 70 }
+                            }));
                         } else {
                             photoChildren.push(new Paragraph(''));
                         }
@@ -1567,7 +1577,7 @@ export const ExportModule = {
                             width: { size: 4680, type: WidthType.DXA },
                             verticalAlign: VerticalAlign.CENTER,
                             margins: { top: 80, bottom: 80, left: 120, right: 120 },
-                            borders: { top: thin, bottom: thin, left: thin, right: thin }
+                            borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder }
                         }));
                     }
                     const note = pair.map(photo => String(photo?.descripcion || '').trim()).filter(Boolean).join(' | ') || ' ';
@@ -1577,17 +1587,17 @@ export const ExportModule = {
                         borders: allBorders,
                         rows: [
                             new TableRow({ children: [
-                                new TableCell({ width: { size: 1300, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, fill: 'F4F4F4' }, children: [new Paragraph({ children: [new TextRun({ text: itemText, bold: true, size: 14 })] })], margins: { top: 70, bottom: 70, left: 100, right: 80 }, borders: { top: thin, bottom: thin, left: thin, right: thin } }),
-                                new TableCell({ width: { size: 7260, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, fill: 'F4F4F4' }, children: [new Paragraph({ children: [new TextRun({ text: title, bold: true, size: 14 })] })], margins: { top: 70, bottom: 70, left: 110, right: 80 }, borders: { top: thin, bottom: thin, left: thin, right: thin } }),
-                                new TableCell({ width: { size: 800, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, fill: 'F4F4F4' }, children: [new Paragraph({ children: [new TextRun({ text: unit, size: 14 })], alignment: AlignmentType.CENTER })], margins: { top: 70, bottom: 70, left: 60, right: 60 }, borders: { top: thin, bottom: thin, left: thin, right: thin } })
+                                new TableCell({ width: { size: 1300, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, fill: 'F1F3F4' }, children: [new Paragraph({ children: [new TextRun({ text: itemText, bold: true, size: 14 })] })], margins: { top: 70, bottom: 70, left: 100, right: 80 }, borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder } }),
+                                new TableCell({ width: { size: 7260, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, fill: 'F1F3F4' }, children: [new Paragraph({ children: [new TextRun({ text: title, bold: true, size: 14 })] })], margins: { top: 70, bottom: 70, left: 110, right: 80 }, borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder } }),
+                                new TableCell({ width: { size: 800, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, fill: 'F1F3F4' }, children: [new Paragraph({ children: [new TextRun({ text: unit, size: 14 })], alignment: AlignmentType.CENTER })], margins: { top: 70, bottom: 70, left: 60, right: 60 }, borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder } })
                             ] }),
                             new TableRow({ children: [new TableCell({
                                 columnSpan: 3,
-                                children: [new Table({ width: { size: 9360, type: WidthType.DXA }, layout: TableLayoutType.FIXED, borders: allBorders, rows: [new TableRow({ children: cells })] })],
+                                children: [new Table({ width: { size: 9360, type: WidthType.DXA }, layout: TableLayoutType.FIXED, borders: photoGridBorders, rows: [new TableRow({ children: cells })] })],
                                 margins: { top: 0, bottom: 0, left: 0, right: 0 },
-                                borders: { top: thin, bottom: thin, left: thin, right: thin }
+                                borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder }
                             })] }),
-                            new TableRow({ children: [new TableCell({ columnSpan: 3, children: [new Paragraph({ children: [new TextRun({ text: note, size: 14, color: '333333' })], spacing: { before: 50, after: 50 } })], margins: { top: 50, bottom: 50, left: 110, right: 110 }, borders: { top: thin, bottom: thin, left: thin, right: thin } })] })
+                            new TableRow({ children: [new TableCell({ columnSpan: 3, children: [new Paragraph({ children: [new TextRun({ text: note, size: 14, color: '333333' })], spacing: { before: 50, after: 50 } })], margins: { top: 50, bottom: 50, left: 110, right: 110 }, borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder } })] })
                         ]
                     });
                     children.push(ficha, new Paragraph({ spacing: { after: 180 } }));
@@ -1595,11 +1605,11 @@ export const ExportModule = {
             }
 
             const doc = new Document({
-                styles: { default: { document: { run: { font: 'Aptos', size: 20 } } } },
+                styles: { default: { document: { run: { font: 'Segoe UI', size: 20 } } } },
                 sections: [{
                     properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 900, right: 1270, bottom: 900, left: 1270 } } },
-                    headers: { default: new Header({ children: [new Paragraph({ children: [new TextRun({ text: `FICHAS TECNICAS  |  ${(project.name || 'S/N').toUpperCase()}  |  ${this._getDateLabel().toUpperCase()}`, size: 13, color: '666666' })], alignment: AlignmentType.RIGHT, border: { bottom: thin } })] }) },
-                    footers: { default: new Footer({ children: [new Paragraph({ children: [new TextRun({ text: 'FICHAS TECNICAS  |  PAGINA ', size: 12, color: '777777' }), new TextRun({ children: [PageNumber.CURRENT], size: 12, color: '777777' })], alignment: AlignmentType.CENTER })] }) },
+                    headers: { default: this._createDocxHeader(project, 'FICHAS TÉCNICAS') },
+                    footers: { default: this._createDocxFooter() },
                     children
                 }]
             });
