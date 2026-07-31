@@ -21,7 +21,7 @@ import { LogiNative } from './core/capacitor-bridge.js';
 import { DebugLogger } from './utils/DebugLogger.js';
 import { defineCustomElements } from '@ionic/pwa-elements/loader';
 
-const APP_VERSION = '0.0.11';
+const APP_VERSION = '0.0.12';
 
 // Inicializar elementos PWA para soporte de cámara/galería en Web
 defineCustomElements(window);
@@ -66,6 +66,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         State.subscribe(() => {
             updateHeaderProjectName();
         });
+
+        // Vigilancia temprana: avisa una vez por firma de incidencia, sin tocar
+        // ninguna foto, si los registros ya no tienen sus archivos asociados.
+        window.addEventListener('logi-state-loaded', async (event) => {
+            const items = event.detail?.items || [];
+            if (LogiNative.isNative() || items.length === 0) return;
+            const result = await LogiNative.auditPhotoIntegrity(items);
+            if (result.missing <= 0) return;
+            const signature = `${result.checked}:${result.missing}`;
+            if (localStorage.getItem('logi_photo_guard_signature') === signature) return;
+            localStorage.setItem('logi_photo_guard_signature', signature);
+            DebugLogger.error('STORAGE', `Alerta de integridad: ${result.missing}/${result.checked} fotos no están disponibles en IndexedDB.`);
+            alert(`ALERTA DE RESPALDO: faltan ${result.missing} de ${result.checked} fotos verificadas. No borres los datos de Chrome; genera o restaura un respaldo antes de continuar.`);
+        });
+
+        const retryCloudBackups = () => import('./core/SupabaseService.js')
+            .then(({ SupabaseSvc }) => SupabaseSvc.retryPendingConfiguredProjects())
+            .catch(error => DebugLogger.warn('CLOUD', `No fue posible reintentar el respaldo: ${error.message}`));
+        window.addEventListener('online', retryCloudBackups);
+        window.addEventListener('logi-state-loaded', retryCloudBackups, { once: true });
     } catch (e) {
         console.error("Boot Error:", e);
     }

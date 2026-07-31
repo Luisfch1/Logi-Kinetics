@@ -165,7 +165,71 @@ export const LogiNative = {
                 console.error("[Bridge] Error sanando LocalStorage:", err);
             }
             await getDB();
+            // IndexedDB es de tipo "best effort" por defecto. Registramos el
+            // estado ahora y la solicitud se hace al tomar la primera foto,
+            // cuando Chrome tiene una interacción del usuario para evaluarla.
+            await LogiNative.getStorageProtectionStatus();
         }
+    },
+
+    /**
+     * Estado de protección del almacenamiento PWA. No se confunde cuota libre
+     * con persistencia: una cuota amplia no impide que Chrome limpie un origen.
+     */
+    getStorageProtectionStatus: async ({ request = false } = {}) => {
+        if (LogiNative.isNative()) return { mode: 'native', persistent: true, supported: true };
+
+        const supported = !!(navigator.storage && navigator.storage.persisted);
+        let persistent = false;
+        let usage = null;
+        let quota = null;
+        try {
+            if (supported) {
+                persistent = await navigator.storage.persisted();
+                if (!persistent && request && navigator.storage.persist) {
+                    persistent = await navigator.storage.persist();
+                }
+            }
+            if (navigator.storage?.estimate) {
+                const estimate = await navigator.storage.estimate();
+                usage = estimate.usage || 0;
+                quota = estimate.quota || 0;
+            }
+        } catch (error) {
+            DebugLogger.warn('STORAGE', `No se pudo consultar protección PWA: ${error.message}`);
+        }
+
+        const result = { mode: 'pwa', supported, persistent, usage, quota, checkedAt: Date.now() };
+        try { localStorage.setItem('logi_storage_protection', JSON.stringify(result)); } catch (_) { }
+        return result;
+    },
+
+    /** Verifica que una foto siga siendo recuperable inmediatamente después de guardarla. */
+    verifyBlob: async (filename) => {
+        if (!filename) return false;
+        try {
+            if (!LogiNative.isNative()) {
+                const db = await getDB();
+                if (!db) return false;
+                return await new Promise((resolve) => {
+                    const tx = db.transaction(STORE_NAME, 'readonly');
+                    const req = tx.objectStore(STORE_NAME).get(String(filename).trim());
+                    req.onsuccess = () => resolve(!!req.result);
+                    req.onerror = () => resolve(false);
+                });
+            }
+            return !!(await LogiNative.getBlobUri(filename));
+        } catch (_) { return false; }
+    },
+
+    /** Diagnóstico ligero de pérdida de medios; no altera ni elimina datos. */
+    auditPhotoIntegrity: async (items = [], limit = 20) => {
+        const sample = (items || []).filter(it => it?.filename).slice(0, limit);
+        let available = 0;
+        for (const item of sample) {
+            if (await LogiNative.verifyBlob(item.filename)) available++;
+        }
+        return { checked: sample.length, available, missing: sample.length - available };
     },
 
     migrateLegacyData: async () => {
@@ -248,7 +312,7 @@ export const LogiNative = {
             data_dir: DATA_DIR,
             base_uri: _dynamicBlobsUri,
             migrated: localStorage.getItem('logi_migrated_v189'),
-            version: '0.0.6-REPORT-STUDIO'
+            version: '0.0.12-REPORT-STUDIO'
         };
     },
 
@@ -423,7 +487,7 @@ export const LogiNative = {
         if (!LogiNative.isNative()) {
             const db = await getDB();
             if (!db) return false;
-            return new Promise(r => {
+            const committed = await new Promise(r => {
                 const tx = db.transaction(STORE_NAME, 'readwrite');
                 tx.objectStore(STORE_NAME).put(base64, 'export_logo');
                 tx.oncomplete = () => r(true);
@@ -706,6 +770,13 @@ export const LogiNative = {
                     r(false);
                 };
             });
+            if (!committed) return false;
+            const verified = await LogiNative.verifyBlob(filename);
+            if (!verified) {
+                DebugLogger.error('BRIDGE', `storeBlob no superó verificación IndexedDB: ${filename}`);
+                return false;
+            }
+            return true;
         }
         try {
             const dtWrite0 = performance.now();
@@ -718,6 +789,7 @@ export const LogiNative = {
             }), 15000);
             const savedFile = await withTimeout(Filesystem.stat({ path, directory: PRIMARY_DIR }), 5000);
             if (!savedFile) throw new Error('Android did not confirm the saved photo');
+            if (!(await LogiNative.verifyBlob(filename))) throw new Error('Android could not read the saved photo');
             const dt = Math.round(performance.now() - dtWrite0);
             DebugLogger.info('BRIDGE', `storeBlob OK (Nativo Filesystem): ${filename} en ${dt}ms (${payloadKB} KB)`);
             return true;

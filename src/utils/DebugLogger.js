@@ -262,6 +262,25 @@ class DebugLoggerService {
             checks.push({ name: 'Storage Quota Estimate', pass: false, detail: quotaErr.message, durationMs: 0 });
         }
 
+        // 3.1 La cuota no equivale a durabilidad. En PWA mostramos de forma
+        // explícita si Chrome concedió protección contra limpieza automática.
+        try {
+            const { LogiNative } = await import('../core/capacitor-bridge.js');
+            const protection = await LogiNative.getStorageProtectionStatus();
+            if (!LogiNative.isNative()) {
+                checks.push({
+                    name: 'Protección persistente PWA',
+                    pass: protection.persistent,
+                    detail: protection.persistent
+                        ? 'Chrome confirmó almacenamiento persistente.'
+                        : 'Chrome no confirmó protección. Activa respaldo en nube antes de depender solo del teléfono.',
+                    durationMs: 0
+                });
+            }
+        } catch (storageErr) {
+            checks.push({ name: 'Protección persistente PWA', pass: false, detail: storageErr.message, durationMs: 0 });
+        }
+
         // 4. API de Cámara y Soporte Web
         try {
             const hasMediaDevices = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);

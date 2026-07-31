@@ -411,7 +411,19 @@ export const CaptureCtrl = {
             _pnname: State._norm(State.currentProject?.name || '')
         };
 
-        // Guardado persistente
+        // En PWA pedimos protección persistente desde el gesto de captura. Si
+        // Chrome la rechaza, la foto se conserva pero queda una alerta visible.
+        const storageProtection = await LogiNative.getStorageProtectionStatus({ request: true });
+        if (!storageProtection.persistent && !LogiNative.isNative()) {
+            const warned = localStorage.getItem('logi_storage_protection_warned');
+            if (!warned) {
+                localStorage.setItem('logi_storage_protection_warned', 'true');
+                alert('Chrome no confirmó almacenamiento persistente. La foto se guardará, pero activa un respaldo en nube antes de depender de estas evidencias.');
+            }
+            DebugLogger.warn('STORAGE', 'Captura guardada sin protección persistente de Chrome.');
+        }
+
+        // Guardado persistente y verificado antes de crear el registro.
         const savedBlob = await LogiNative.storeBlob(filename, finalBase64);
         if (!savedBlob) {
             alert('La foto no se pudo guardar de forma segura. No se creó el registro para evitar una miniatura vacía. Inténtalo de nuevo.');

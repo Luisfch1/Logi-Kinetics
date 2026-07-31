@@ -88,7 +88,7 @@
     <div id="projects-overlay"></div>
     <div id="debug-console-overlay" class="fixed inset-0 z-[9999] hidden bg-black/95 backdrop-blur-xl p-8 overflow-y-auto font-mono text-[10px] text-primary">
         <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
-            <h2 class="text-xl font-black italic text-primary">ULTIMATE DEBUG CONSOLE (v0.0.11 · REPORT STUDIO)</h2>
+            <h2 class="text-xl font-black italic text-primary">ULTIMATE DEBUG CONSOLE (v0.0.12 · REPORT STUDIO)</h2>
             <button onclick="document.getElementById('debug-console-overlay').classList.add('hidden')" class="bg-primary text-black px-4 py-2 rounded-full font-black">CERRAR</button>
         </div>
         <div id="debug-console-content" class="space-y-6">
@@ -160,11 +160,11 @@
     <script src="/lib/xlsx.full.min.js?v=2026-04-03-1845"></script>
     <script src="/lib/pdf-lib.min.js?v=2026-04-03-1845"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-    <script type="module" src="/src/main.js?v=0.0.11"></script>
+    <script type="module" src="/src/main.js?v=0.0.12"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=0.0.11')
+                navigator.serviceWorker.register('./sw.js?v=0.0.12')
                     .then(reg => console.log('Service Worker registrado con éxito:', reg.scope))
                     .catch(err => console.error('Error al registrar Service Worker:', err));
             });

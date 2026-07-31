@@ -156,6 +156,24 @@ class SupabaseService {
         return successCount;
     }
 
+    /** Reintenta automáticamente evidencias pendientes cuando la PWA recupera conexión. */
+    async retryPendingConfiguredProjects() {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) return 0;
+        const { State } = await import('./state.js');
+        let synced = 0;
+        for (const item of State._allItems.filter(entry => !entry.synced)) {
+            const project = State.projects.find(candidate => State._norm(candidate.id) === State._norm(item.projectId));
+            if (!project?.supabaseUrl || !project?.supabaseKey || !project?.controlProjectId) continue;
+            if (await this.processFullSync(item, {
+                supabaseUrl: project.supabaseUrl,
+                supabaseKey: project.supabaseKey,
+                controlProjectId: project.controlProjectId
+            })) synced++;
+        }
+        if (synced) console.log(`[SupabaseService] Reintento automático: ${synced} evidencia(s) sincronizada(s).`);
+        return synced;
+    }
+
     /**
      * Proceso completo: Subir imagen y sincronizar metadata.
      */

@@ -201,6 +201,7 @@ class StateManager {
                 this.isLoaded = true;
                 this.notify('items');
                 this.notify('projects');
+                window.dispatchEvent(new CustomEvent('logi-state-loaded', { detail: { items: this._allItems } }));
                 console.log(`[State] Global Pulse Load OK (v192.3-TITAN): ${processedItems.length} loaded, total ${this._allItems.length}`);
 
                 if (LogiNative.isNative() && this._allItems.length === 0) {
