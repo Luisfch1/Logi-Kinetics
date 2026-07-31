@@ -220,6 +220,11 @@ export const ExportModule = {
         return { r, g, b };
     },
 
+    _getAccentHex() {
+        const raw = String(State.accentColor || '#cafd00').trim().replace('#', '');
+        return /^[0-9a-fA-F]{6}$/.test(raw) ? raw.toUpperCase() : 'CAFD00';
+    },
+
     _getItemName(code) {
         if (!State.catalog || !code) return "";
         const cleanCode = String(code).trim().toUpperCase();
@@ -248,18 +253,20 @@ export const ExportModule = {
         return this._formatDateRange(this.config.dateStart, this.config.dateEnd);
     },
 
-    _createDocxHeader(project, reportLabel) {
+    _createDocxHeader(project, reportLabel, { fullBleed = false, pageWidth = 9360, sideMargin = 0 } = {}) {
+        const accent = this._getAccentHex();
         return new Header({ children: [new Table({
             // Carta con márgenes de 1": 9360 DXA disponibles. Nunca exceder este ancho.
-            width: { size: 9360, type: WidthType.DXA },
+            width: { size: pageWidth, type: WidthType.DXA },
+            indent: fullBleed ? { size: -sideMargin, type: WidthType.DXA } : undefined,
             layout: TableLayoutType.FIXED,
-            borders: { top: { style: BorderStyle.SINGLE, size: 20, color: 'CAFD00' }, bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }, left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }, right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }, insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }, insideVertical: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' } },
+            borders: { top: { style: BorderStyle.SINGLE, size: 20, color: accent }, bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }, left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }, right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }, insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }, insideVertical: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' } },
             rows: [new TableRow({ children: [new TableCell({
-                width: { size: 2700, type: WidthType.DXA },
+                width: { size: Math.round(pageWidth * 0.29), type: WidthType.DXA },
                 shading: { type: ShadingType.CLEAR, fill: '071A33' },
-                children: [new Paragraph({ children: [new TextRun({ text: 'LOGI', bold: true, color: 'CAFD00', size: 32 })], spacing: { before: 120, after: 120 } })]
+                children: [new Paragraph({ children: [new TextRun({ text: 'LOGI', bold: true, color: accent, size: 32 })], spacing: { before: 120, after: 120 } })]
             }), new TableCell({
-                width: { size: 6660, type: WidthType.DXA },
+                width: { size: Math.round(pageWidth * 0.71), type: WidthType.DXA },
                 shading: { type: ShadingType.CLEAR, fill: '071A33' },
                 children: [new Paragraph({ children: [new TextRun({ text: (project.name || 'PROYECTO').toUpperCase(), bold: true, color: 'FFFFFF', size: 20 })], alignment: AlignmentType.RIGHT, spacing: { before: 80 } }), new Paragraph({ children: [new TextRun({ text: `${reportLabel} · ${this._getDateLabel().toUpperCase()}`, color: 'B8C2CC', size: 13 })], alignment: AlignmentType.RIGHT, spacing: { after: 100 } })]
             })] })]
@@ -267,10 +274,11 @@ export const ExportModule = {
     },
 
     _createDocxFooter() {
+        const accent = this._getAccentHex();
         return new Footer({ children: [new Paragraph({
-            children: [new TextRun({ text: 'LOGI KINETICS  |  REGISTRO FOTOGRÁFICO  |  PÁGINA ', color: '6B7280', size: 12 }), new TextRun({ children: [PageNumber.CURRENT], color: 'CAFD00', bold: true, size: 12 })],
+            children: [new TextRun({ text: 'LOGI KINETICS  |  REGISTRO FOTOGRÁFICO  |  PÁGINA ', color: '6B7280', size: 12 }), new TextRun({ children: [PageNumber.CURRENT], color: accent, bold: true, size: 12 })],
             alignment: AlignmentType.CENTER,
-            border: { top: { style: BorderStyle.SINGLE, size: 4, color: 'CAFD00', space: 4 } }
+            border: { top: { style: BorderStyle.SINGLE, size: 4, color: accent, space: 4 } }
         })] });
     },
 
@@ -742,7 +750,8 @@ export const ExportModule = {
                 try {
                     let bytes = await LogiNative.getBlobBytes(photo.filename);
                     if (bytes) {
-                        bytes = await this._processImage(bytes, customResizeWidth || 1024, this.config.whatsappIncludeLogo, this.config.whatsappIncludeTimestamp, photo, false, firstPhotoNumber + column);
+                        const overlayContext = {};
+                        bytes = await this._processImage(bytes, customResizeWidth || 1024, this.config.whatsappIncludeLogo, this.config.whatsappIncludeTimestamp, photo, false, firstPhotoNumber + column, overlayContext);
                         const image = await doc.embedJpg(bytes);
                         // Marco idéntico para todas las fotos: el orden visual
                         // no cambia aunque la captura original sea vertical.
@@ -758,9 +767,12 @@ export const ExportModule = {
                         const tagH = 18;
                         const tagX = drawX + 6;
                         const tagY = drawY + drawH - tagH - 6;
-                        page.drawRectangle({ x: tagX, y: tagY, width: tagW, height: tagH, color: rgb(0.06, 0.09, 0.12), opacity: 0.92 });
-                        page.drawText('FOTO', { x: tagX + 5, y: tagY + 6, size: 5.4, font: fontBold, color: rgb(1, 1, 1) });
-                        page.drawText(String(firstPhotoNumber + column), { x: tagX + 24, y: tagY + 5, size: 9, font: fontBold, color: rgb(0.79, 0.99, 0) });
+                        const labelIsWhite = overlayContext.darkBackground !== false;
+                        const labelBg = labelIsWhite ? rgb(0.04, 0.05, 0.06) : rgb(1, 1, 1);
+                        const labelFg = labelIsWhite ? rgb(1, 1, 1) : rgb(0.05, 0.06, 0.07);
+                        page.drawRectangle({ x: tagX, y: tagY, width: tagW, height: tagH, color: labelBg, opacity: 0.88 });
+                        page.drawText('FOTO', { x: tagX + 5, y: tagY + 6, size: 5.4, font: fontBold, color: labelFg });
+                        page.drawText(String(firstPhotoNumber + column), { x: tagX + 24, y: tagY + 5, size: 9, font: fontBold, color: labelFg });
                     }
                 } catch (error) { console.warn('No fue posible agregar foto a ficha', error); }
             }
@@ -907,7 +919,7 @@ export const ExportModule = {
      * _processImage: MOTOR DE PROCESAMIENTO HÍBRIDO (v192-TITAN-X)
      * Maneja redimensionamiento, marca de agua (logo) y estampado de fecha/hora.
      */
-    async _processImage(uint8Array, maxWidth, includeLogo = false, includeTimestamp = false, itemMeta = null, isClassic = false, photoIndex = null) {
+    async _processImage(uint8Array, maxWidth, includeLogo = false, includeTimestamp = false, itemMeta = null, isClassic = false, photoIndex = null, overlayContext = null) {
         return new Promise((resolve) => {
             const blob = new Blob([uint8Array], { type: 'image/jpeg' });
             const url = URL.createObjectURL(blob);
@@ -991,13 +1003,36 @@ export const ExportModule = {
 
                     ctx.textAlign = tAlign;
                     
-                    // Fondo semi-transparente para legibilidad extrema
-                    ctx.fillStyle = 'rgba(0,0,0,0.6)';
                     const rectX = tAlign === 'right' ? tx - textW - 10 : tx - 10;
-                    ctx.fillRect(rectX, ty - fontSize - 5, textW + 20, fontSize + 15);
-                    
-                    ctx.fillStyle = '#cafd00'; // Color primario Logi
+                    const rectY = ty - fontSize - 5;
+                    const rectW = textW + 20;
+                    const rectH = fontSize + 15;
+                    const pixels = ctx.getImageData(Math.max(0, Math.floor(rectX)), Math.max(0, Math.floor(rectY)), Math.max(1, Math.min(Math.ceil(rectW), width - Math.max(0, Math.floor(rectX)))), Math.max(1, Math.min(Math.ceil(rectH), height - Math.max(0, Math.floor(rectY))))).data;
+                    let luminance = 0;
+                    let samples = 0;
+                    for (let p = 0; p < pixels.length; p += 16) {
+                        luminance += (pixels[p] * 0.2126) + (pixels[p + 1] * 0.7152) + (pixels[p + 2] * 0.0722);
+                        samples++;
+                    }
+                    const darkBackground = (luminance / Math.max(samples, 1)) < 145;
+                    // Blanco sobre imagen oscura, negro sobre imagen clara: nunca el color de la app.
+                    ctx.fillStyle = darkBackground ? 'rgba(0,0,0,0.62)' : 'rgba(255,255,255,0.72)';
+                    ctx.fillRect(rectX, rectY, rectW, rectH);
+                    ctx.fillStyle = darkBackground ? '#FFFFFF' : '#111111';
                     ctx.fillText(dateStr.toUpperCase(), tx, ty);
+                }
+
+                if (overlayContext) {
+                    const sampleW = Math.max(1, Math.floor(width * 0.22));
+                    const sampleH = Math.max(1, Math.floor(height * 0.16));
+                    const pixels = ctx.getImageData(0, 0, sampleW, sampleH).data;
+                    let luminance = 0;
+                    let samples = 0;
+                    for (let p = 0; p < pixels.length; p += 16) {
+                        luminance += (pixels[p] * 0.2126) + (pixels[p + 1] * 0.7152) + (pixels[p + 2] * 0.0722);
+                        samples++;
+                    }
+                    overlayContext.darkBackground = (luminance / Math.max(samples, 1)) < 145;
                 }
 
                 // La numeración en las fotos se ha removido a petición del usuario
@@ -1535,8 +1570,15 @@ export const ExportModule = {
             // intentan dibujar el mismo borde.
             const thin = { style: BorderStyle.SINGLE, size: 8, color: '616A70' };
             const noBorder = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
-            const allBorders = { top: thin, bottom: thin, left: thin, right: thin, insideHorizontal: thin, insideVertical: thin };
-            const photoGridBorders = { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder, insideHorizontal: noBorder, insideVertical: thin };
+            const noTableBorders = { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder, insideHorizontal: noBorder, insideVertical: noBorder };
+            // Bordes en las celdas: Word los respeta al exportar y cada unión se dibuja una sola vez.
+            const headerLeftBorders = { top: thin, bottom: thin, left: thin, right: thin };
+            const headerMiddleBorders = { top: thin, bottom: thin, left: noBorder, right: thin };
+            const headerRightBorders = { top: thin, bottom: thin, left: noBorder, right: thin };
+            const photoOuterBorders = { top: noBorder, bottom: thin, left: thin, right: thin };
+            const noteBorders = { top: noBorder, bottom: thin, left: thin, right: thin };
+            const photoLeftBorders = { top: noBorder, bottom: noBorder, left: noBorder, right: thin };
+            const photoRightBorders = { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder };
             const children = [];
             let drawingId = 0;
             let photoNumber = 0;
@@ -1577,27 +1619,27 @@ export const ExportModule = {
                             width: { size: 4680, type: WidthType.DXA },
                             verticalAlign: VerticalAlign.CENTER,
                             margins: { top: 80, bottom: 80, left: 120, right: 120 },
-                            borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder }
+                            borders: column === 0 ? photoLeftBorders : photoRightBorders
                         }));
                     }
                     const note = pair.map(photo => String(photo?.descripcion || '').trim()).filter(Boolean).join(' | ') || ' ';
                     const ficha = new Table({
                         width: { size: 9360, type: WidthType.DXA },
                         layout: TableLayoutType.FIXED,
-                        borders: allBorders,
+                        borders: noTableBorders,
                         rows: [
                             new TableRow({ children: [
-                                new TableCell({ width: { size: 1300, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, fill: 'F1F3F4' }, children: [new Paragraph({ children: [new TextRun({ text: itemText, bold: true, size: 14 })] })], margins: { top: 70, bottom: 70, left: 100, right: 80 }, borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder } }),
-                                new TableCell({ width: { size: 7260, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, fill: 'F1F3F4' }, children: [new Paragraph({ children: [new TextRun({ text: title, bold: true, size: 14 })] })], margins: { top: 70, bottom: 70, left: 110, right: 80 }, borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder } }),
-                                new TableCell({ width: { size: 800, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, fill: 'F1F3F4' }, children: [new Paragraph({ children: [new TextRun({ text: unit, size: 14 })], alignment: AlignmentType.CENTER })], margins: { top: 70, bottom: 70, left: 60, right: 60 }, borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder } })
+                                new TableCell({ width: { size: 1300, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, fill: 'F1F3F4' }, children: [new Paragraph({ children: [new TextRun({ text: itemText, bold: true, size: 14 })] })], margins: { top: 70, bottom: 70, left: 100, right: 80 }, borders: headerLeftBorders }),
+                                new TableCell({ width: { size: 7260, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, fill: 'F1F3F4' }, children: [new Paragraph({ children: [new TextRun({ text: title, bold: true, size: 14 })] })], margins: { top: 70, bottom: 70, left: 110, right: 80 }, borders: headerMiddleBorders }),
+                                new TableCell({ width: { size: 800, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, fill: 'F1F3F4' }, children: [new Paragraph({ children: [new TextRun({ text: unit, size: 14 })], alignment: AlignmentType.CENTER })], margins: { top: 70, bottom: 70, left: 60, right: 60 }, borders: headerRightBorders })
                             ] }),
                             new TableRow({ children: [new TableCell({
                                 columnSpan: 3,
-                                children: [new Table({ width: { size: 9360, type: WidthType.DXA }, layout: TableLayoutType.FIXED, borders: photoGridBorders, rows: [new TableRow({ children: cells })] })],
+                                children: [new Table({ width: { size: 9360, type: WidthType.DXA }, layout: TableLayoutType.FIXED, borders: noTableBorders, rows: [new TableRow({ children: cells })] })],
                                 margins: { top: 0, bottom: 0, left: 0, right: 0 },
-                                borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder }
+                                borders: photoOuterBorders
                             })] }),
-                            new TableRow({ children: [new TableCell({ columnSpan: 3, children: [new Paragraph({ children: [new TextRun({ text: note, size: 14, color: '333333' })], spacing: { before: 50, after: 50 } })], margins: { top: 50, bottom: 50, left: 110, right: 110 }, borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder } })] })
+                            new TableRow({ children: [new TableCell({ columnSpan: 3, children: [new Paragraph({ children: [new TextRun({ text: note, size: 14, color: '333333' })], spacing: { before: 50, after: 50 } })], margins: { top: 50, bottom: 50, left: 110, right: 110 }, borders: noteBorders })] })
                         ]
                     });
                     children.push(ficha, new Paragraph({ spacing: { after: 180 } }));
@@ -1607,8 +1649,8 @@ export const ExportModule = {
             const doc = new Document({
                 styles: { default: { document: { run: { font: 'Segoe UI', size: 20 } } } },
                 sections: [{
-                    properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 900, right: 1270, bottom: 900, left: 1270 } } },
-                    headers: { default: this._createDocxHeader(project, 'FICHAS TÉCNICAS') },
+                    properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 1650, right: 1270, bottom: 900, left: 1270, header: 0 } } },
+                    headers: { default: this._createDocxHeader(project, 'FICHAS TÉCNICAS', { fullBleed: true, pageWidth: 11906, sideMargin: 1270 }) },
                     footers: { default: this._createDocxFooter() },
                     children
                 }]

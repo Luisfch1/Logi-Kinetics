@@ -312,7 +312,7 @@ export const LogiNative = {
             data_dir: DATA_DIR,
             base_uri: _dynamicBlobsUri,
             migrated: localStorage.getItem('logi_migrated_v189'),
-            version: '0.0.13-REPORT-STUDIO'
+            version: '0.0.14-REPORT-STUDIO'
         };
     },
 

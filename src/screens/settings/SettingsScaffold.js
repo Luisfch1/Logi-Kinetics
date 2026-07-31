@@ -153,7 +153,7 @@ export const SettingsScaffold = {
 
                 <!-- Danger Zone Footer -->
                 <div class="pt-8 flex flex-col items-center gap-6">
-                    <p class="text-[9px] text-on-surface-variant/40 font-medium tracking-widest uppercase">Logi Kinetics v0.0.13 • Respaldo PWA</p>
+                    <p class="text-[9px] text-on-surface-variant/40 font-medium tracking-widest uppercase">Logi Kinetics v0.0.14 • Respaldo PWA</p>
                 </div>
             </div>
         </main>
