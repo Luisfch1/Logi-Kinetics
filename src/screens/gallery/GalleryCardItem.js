@@ -6,7 +6,9 @@
 export const GalleryCardItem = {
     render(item, isSelectionMode = false, isSelected = false, cols = 2) {
         const imgId = `gal-img-${item.id}`;
-        const isCompact = cols === 3;
+        const isDesktop = document.documentElement.classList.contains('desktop-mode');
+        const isCompact = cols >= 3;
+        const imageFitClass = isDesktop ? 'object-contain bg-black' : 'object-cover';
         
         // --- LÓGICA DE CAPSULA INTELIGENTE (Refinada) ---
         const actividadRaw = (item.actividad || '').trim().toUpperCase();
@@ -41,14 +43,14 @@ export const GalleryCardItem = {
                 
                 <!-- Contenedor Maestra de Altura -->
                 <div class="relative w-full ${cardRadius} bg-white/5 border-2 ${borderClass} overflow-hidden group ${scaleClass} transition-all duration-300 shadow-lg" 
-                     style="padding-bottom: 100% !important; height: 0 !important; position: relative !important;">
+                         style="padding-bottom: ${isDesktop ? '75%' : '100%'} !important; height: 0 !important; position: relative !important;">
                     
                     <!-- Contenido Absoluto dentro del Padding Hack -->
                     <div class="absolute inset-0">
                         <!-- Imagen de Fondo -->
                 <img id="${imgId}"
                      src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-                     class="w-full h-full object-cover ${opacityClass} group-hover:opacity-100 transition-opacity duration-500" 
+                     class="w-full h-full ${imageFitClass} ${opacityClass} group-hover:opacity-100 transition-opacity duration-500"
                      alt="Capture ${item.id}">
 
                 <!-- Indicador de Selección (Check Icon) -->

@@ -22,6 +22,38 @@
     padding-right: 1rem;
 }
 
+/* Galería de escritorio: reservar el protagonismo para las fotografías.
+   Estas reglas no se aplican al celular. */
+.desktop-mode #gallery-header {
+    padding-top: 0.35rem !important;
+    padding-bottom: 0.25rem !important;
+}
+
+.desktop-mode #gallery-header > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0.5rem !important;
+}
+
+.desktop-mode #gallery-header > div:first-child {
+    min-height: 3.25rem;
+    padding: 0.65rem 1rem !important;
+}
+
+.desktop-mode #gallery-search {
+    height: 2.75rem !important;
+}
+
+.desktop-mode #gallery-content {
+    margin-top: 0.25rem !important;
+    padding: 0.5rem !important;
+    padding-bottom: 5rem !important;
+}
+
+.desktop-mode #gallery-content .gallery-date-header {
+    padding-top: 0.4rem !important;
+    padding-bottom: 0.4rem !important;
+    margin-bottom: 0.25rem !important;
+}
+
 :root {
     /* Stitch Palette - Dynamic Accent */
     --primary: #cafd00;

@@ -91,13 +91,21 @@ class GalleryController {
         }, 150);
     }
 
+    _getGridColumns() {
+        // La densidad adicional es exclusiva de PC; el celular conserva su
+        // preferencia de 2/3 columnas y el tamaño táctil actual.
+        return document.documentElement.classList.contains('desktop-mode')
+            ? 5
+            : (State.galleryCols || 2);
+    }
+
     _executeIncrementalRender() {
         if (!this.container) return;
         
         // v193.3-OAK: Aplicar clases de cuadrícula dinámica y gap
-        const cols = State.galleryCols || 2;
-        this.container.classList.remove('grid-cols-2', 'grid-cols-3', 'gap-4', 'gap-2');
-        this.container.classList.add(`grid-cols-${cols}`, cols === 3 ? 'gap-2' : 'gap-4');
+        const cols = this._getGridColumns();
+        this.container.classList.remove('grid-cols-2', 'grid-cols-3', 'grid-cols-5', 'gap-4', 'gap-2');
+        this.container.classList.add(`grid-cols-${cols}`, cols >= 3 ? 'gap-2' : 'gap-4');
         this.container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
 
         this.container.innerHTML = '';
@@ -199,7 +207,7 @@ class GalleryController {
     }
 
     _renderBatchToDOM(items) {
-        const cols = State.galleryCols || 2;
+        const cols = this._getGridColumns();
         items.forEach(item => {
             // Lógica de Títulos de Fecha (Sticky)
             const dateObj = new Date(item.createdAt || Date.now());
@@ -441,7 +449,7 @@ class GalleryController {
 
         // Re-renderizado atómico de la pieza
         const temp = document.createElement('div');
-        temp.innerHTML = GalleryCardItem.render(item, this.isSelectionMode, this.selectedIds.has(id), State.galleryCols);
+        temp.innerHTML = GalleryCardItem.render(item, this.isSelectionMode, this.selectedIds.has(id), this._getGridColumns());
         const newCard = temp.firstElementChild;
         
         if (newCard) {
