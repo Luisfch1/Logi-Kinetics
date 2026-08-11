@@ -22,6 +22,7 @@ export const CaptureCtrl = {
     isLongPress: false,
     syncTimer: null,
     renderBatchId: 0,
+    isBulkImporting: false,
 
     async init(isLandscape = false) {
         this.isLandscape = isLandscape;
@@ -30,6 +31,7 @@ export const CaptureCtrl = {
         if (!this.isInitialized) {
             // v191.9-ULTRA: Suscripción reactiva para mostrar fotos nuevas inmediatamente
             State.subscribe((state, changeType) => {
+                if (this.isBulkImporting) return;
                 console.log(`[CaptureModule] State Change: ${changeType} | Tab: ${State.currentTab}`);
                 if (changeType === 'items' || changeType === 'item_added' || changeType === 'item_removed' || changeType === 'project') {
                     this.syncWithState();
@@ -37,6 +39,7 @@ export const CaptureCtrl = {
             });
 
             State.subscribe((state, type) => {
+                if (this.isBulkImporting) return;
                 if (type === 'color') return;
                 // v191.9-FIX: Usar State.currentTab directamente
                 if (State.currentTab === 'capture') {
@@ -313,17 +316,8 @@ export const CaptureCtrl = {
             input.onchange = async (e) => {
                 const files = Array.from(e.target.files || []);
                 DebugLogger.info('CAMERA', `_pickFileNative: ${files.length} archivo(s) seleccionado(s)`);
-                for (const file of files) {
-                    try {
-                        const compressed = await ImageCompressor.compress(file, 1400, 0.75);
-                        if (compressed.base64) await this.processImage(compressed.base64, true);
-                    } catch (err) {
-                        DebugLogger.error('CAMERA', `Error procesando archivo nativo: ${err.message}`, { err });
-                        if (ImageCompressor.isHeic(file)) {
-                            alert(`No se pudo leer ${file.name}. Este HEIC usa una variante que el navegador no pudo decodificar. Exporta la foto como JPG desde Fotos/Archivos del iPhone e inténtalo de nuevo.`);
-                        }
-                    }
-                }
+                if (files.length === 0) return resolve();
+                await this._importFilesInBatch(files);
                 resolve();
             };
             input.oncancel = () => {
@@ -332,6 +326,70 @@ export const CaptureCtrl = {
             };
             input.click();
         });
+    },
+
+    async _importFilesInBatch(files) {
+        const importedItems = [];
+        const failures = [];
+        const total = files.length;
+        let completed = 0;
+        let nextIndex = 0;
+        const workerCount = Math.min(2, total);
+
+        this.isBulkImporting = true;
+        this._updateBulkImportStatus(0, total, 0);
+
+        // La solicitud de almacenamiento persistente se hace una vez por lote,
+        // no una vez por foto.
+        const storageProtection = await LogiNative.getStorageProtectionStatus({ request: true });
+
+        const worker = async () => {
+            while (nextIndex < total) {
+                const file = files[nextIndex++];
+                try {
+                    const compressed = await ImageCompressor.compress(file, 1400, 0.75);
+                    if (!compressed.base64) throw new Error('No se pudo convertir la imagen');
+                    const item = await this.processImage(compressed.base64, true, true, storageProtection);
+                    if (item) importedItems.push(item);
+                    else failures.push(file.name);
+                } catch (err) {
+                    failures.push(file.name);
+                    DebugLogger.error('CAMERA', `Error procesando archivo nativo: ${err.message}`, { err, file: file.name });
+                } finally {
+                    completed++;
+                    this._updateBulkImportStatus(completed, total, failures.length);
+                }
+            }
+        };
+
+        try {
+            await Promise.all(Array.from({ length: workerCount }, worker));
+            State.addItems(importedItems);
+            this.selectedCardId = importedItems.at(-1)?.id || this.selectedCardId;
+            await this.syncWithState();
+        } finally {
+            this.isBulkImporting = false;
+            this._finishBulkImportStatus(importedItems.length, total, failures);
+        }
+    },
+
+    _updateBulkImportStatus(current, total, failures) {
+        let status = document.getElementById('bulk-import-status');
+        if (!status) {
+            status = document.createElement('div');
+            status.id = 'bulk-import-status';
+            status.className = 'fixed top-5 left-1/2 -translate-x-1/2 z-[1000] rounded-xl border border-primary/40 bg-black/90 px-5 py-3 text-center shadow-2xl backdrop-blur';
+            document.body.appendChild(status);
+        }
+        status.innerHTML = `<p class="text-[10px] font-black uppercase tracking-widest text-primary">Cargando fotos ${current}/${total}</p><p class="mt-1 text-[9px] text-white/50">${failures ? `${failures} con error` : 'No cierres la aplicación durante el proceso'}</p>`;
+    },
+
+    _finishBulkImportStatus(imported, total, failures) {
+        const status = document.getElementById('bulk-import-status');
+        if (!status) return;
+        status.innerHTML = `<p class="text-[10px] font-black uppercase tracking-widest text-primary">${imported}/${total} fotos cargadas</p><p class="mt-1 text-[9px] text-white/50">${failures.length ? `${failures.length} no se pudieron procesar` : 'Proceso completado'}</p>`;
+        setTimeout(() => status.remove(), 4000);
+        if (failures.length) DebugLogger.warn('CAMERA', `Carga masiva finalizada con ${failures.length} error(es).`, { failures });
     },
 
     /**
@@ -383,7 +441,7 @@ export const CaptureCtrl = {
         return null;
     },
 
-    async processImage(rawBase64, isAlreadyCompressed = false) {
+    async processImage(rawBase64, isAlreadyCompressed = false, deferStateUpdate = false, storageProtection = null) {
         if (!rawBase64) return;
         const id = 'cap_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
         const filename = id + '.jpg';
@@ -418,8 +476,8 @@ export const CaptureCtrl = {
 
         // En PWA pedimos protección persistente desde el gesto de captura. Si
         // Chrome la rechaza, la foto se conserva pero queda una alerta visible.
-        const storageProtection = await LogiNative.getStorageProtectionStatus({ request: true });
-        if (!storageProtection.persistent && !LogiNative.isNative()) {
+        const protection = storageProtection || await LogiNative.getStorageProtectionStatus({ request: true });
+        if (!protection.persistent && !LogiNative.isNative()) {
             const warned = localStorage.getItem('logi_storage_protection_warned');
             if (!warned) {
                 localStorage.setItem('logi_storage_protection_warned', 'true');
@@ -447,8 +505,10 @@ export const CaptureCtrl = {
         // Actualización de estado
         data._tempImageSrc = "data:image/jpeg;base64," + finalBase64;
         DebugLogger.event('CAPTURE', `Foto procesada y registrada: ${id} (${compressedSizeKB} KB)`);
-        State.addItem(data);
-        this.selectedCardId = id;
+        if (!deferStateUpdate) {
+            State.addItem(data);
+            this.selectedCardId = id;
+        }
 
         // --- CLOUD SYNC BRIDGE (v2026-05-02) ---
         if (State.currentProject?.supabaseUrl) {
@@ -470,6 +530,7 @@ export const CaptureCtrl = {
                 DebugLogger.error('CLOUD', `Error al cargar SupabaseService: ${err.message}`);
             });
         }
+        return data;
     },
 
     async deleteCapture(id, filename) {

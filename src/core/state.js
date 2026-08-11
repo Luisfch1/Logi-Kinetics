@@ -375,6 +375,25 @@ class StateManager {
         this.notify('items');
     }
 
+    addItems(items) {
+        const sanitizedItems = (items || []).map(item => this._sanitize(item)).filter(Boolean);
+        if (sanitizedItems.length === 0) return;
+
+        sanitizedItems.forEach(item => {
+            if (this.currentProject) {
+                item._pnid = item._pnid || this._norm(this.currentProject.id);
+                item._pnname = item._pnname || this._norm(this.currentProject.name);
+                item._pndate = item._pndate || new Date(item.createdAt || Date.now()).toDateString();
+            }
+        });
+
+        // Mantiene el mismo orden visual que addItem() repetido, pero filtra y
+        // notifica una sola vez: esencial al importar decenas de evidencias.
+        this._allItems.unshift(...sanitizedItems.reverse());
+        this._filterItems();
+        this.notify('items');
+    }
+
     async deleteProject(id) {
         // 1. ELIMINACIÓN DE METADATOS DEL PROYECTO
         await LogiNative.dbDelete('meta', id);
