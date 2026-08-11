@@ -301,7 +301,9 @@ export const CaptureCtrl = {
         return new Promise((resolve) => {
             const input = document.createElement('input');
             input.type = 'file';
-            input.accept = 'image/*';
+            // image/* cubre formatos habituales; las extensiones explícitas
+            // permiten seleccionar HEIC/HEIF aunque el navegador no informe MIME.
+            input.accept = 'image/*,.jpg,.jpeg,.png,.webp,.gif,.avif,.heic,.heif';
             if (mode === 'camera') {
                 input.capture = 'environment'; // Cámara trasera
             } else {

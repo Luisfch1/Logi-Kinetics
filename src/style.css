@@ -7,6 +7,21 @@
     padding-top: max(1rem, env(safe-area-inset-top, 0px)) !important;
 }
 
+/* En PC la navegación no debe desaparecer solo porque la ventana esté en
+   orientación horizontal. El modo horizontal móvil sigue usando las reglas
+   de Tailwind existentes. */
+.desktop-mode #global-header,
+.desktop-mode #bottom-nav {
+    display: flex !important;
+}
+
+.desktop-mode #bottom-nav {
+    justify-content: center;
+    gap: 2.5rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
 :root {
     /* Stitch Palette - Dynamic Accent */
     --primary: #cafd00;

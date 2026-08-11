@@ -38,7 +38,8 @@ export const Architect = {
         this.updateBottomNav(id);
 
         // Determinar orientación inicial
-        const isLandscape = window.innerWidth > window.innerHeight;
+        const isDesktop = window.matchMedia('(min-width: 900px) and (pointer: fine)').matches;
+        const isLandscape = !isDesktop && window.innerWidth > window.innerHeight;
         container.innerHTML = screen.getLayout(isLandscape);
 
         // 3. Initialize Controller Logic
@@ -66,7 +67,8 @@ export const Architect = {
     async handleResize() {
         if (!this.currentScreen) return;
         const container = document.getElementById('view-container');
-        const isLandscape = window.innerWidth > window.innerHeight;
+        const isDesktop = window.matchMedia('(min-width: 900px) and (pointer: fine)').matches;
+        const isLandscape = !isDesktop && window.innerWidth > window.innerHeight;
         
         // Actualizar layout si el módulo soporta re-renderizado reactivo
         if (this.currentScreen.updateLayout) {

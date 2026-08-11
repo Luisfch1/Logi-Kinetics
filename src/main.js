@@ -23,6 +23,16 @@ import { defineCustomElements } from '@ionic/pwa-elements/loader';
 
 const APP_VERSION = '0.0.14';
 
+// El modo horizontal de la app móvil no debe confundirse con una ventana de PC.
+// En escritorio conservamos la navegación y el paquete visual completo.
+function updateEnvironmentClass() {
+    const isDesktop = window.matchMedia('(min-width: 900px) and (pointer: fine)').matches;
+    document.documentElement.classList.toggle('desktop-mode', isDesktop);
+    return isDesktop;
+}
+
+updateEnvironmentClass();
+
 // Inicializar elementos PWA para soporte de cámara/galería en Web
 defineCustomElements(window);
 
@@ -90,6 +100,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error("Boot Error:", e);
     }
 });
+
+window.addEventListener('resize', updateEnvironmentClass);
 
 function setupHeaderSettings() {
     const btn = document.getElementById('btn-app-settings');

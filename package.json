@@ -26,6 +26,7 @@
     "@capacitor/share": "^8.0.1",
     "@ionic/pwa-elements": "^3.4.0",
     "@supabase/supabase-js": "^2.105.1",
-    "docx": "^9.6.1"
+    "docx": "^9.6.1",
+    "heic2any": "^0.0.4"
   }
 }

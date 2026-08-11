@@ -4,8 +4,31 @@
  * Prevents bridge timeouts, out-of-memory crashes, and LocalStorage quota errors.
  */
 import { DebugLogger } from './DebugLogger.js';
+import heic2any from 'heic2any';
 
 export const ImageCompressor = {
+    isHeic(input) {
+        const name = typeof input?.name === 'string' ? input.name.toLowerCase() : '';
+        const type = typeof input?.type === 'string' ? input.type.toLowerCase() : '';
+        return type === 'image/heic' || type === 'image/heif' || /\.(heic|heif)$/.test(name);
+    },
+
+    async decodeForBrowser(input) {
+        if (!this.isHeic(input)) return input;
+
+        DebugLogger.info('COMPRESSOR', `Convirtiendo imagen ${input.name || 'HEIC'} a JPEG para compatibilidad web...`);
+        const converted = await heic2any({
+            blob: input,
+            toType: 'image/jpeg',
+            quality: 0.92
+        });
+        const blob = Array.isArray(converted) ? converted[0] : converted;
+        return new File([blob], `${(input.name || 'imagen').replace(/\.(heic|heif)$/i, '')}.jpg`, {
+            type: 'image/jpeg',
+            lastModified: input.lastModified || Date.now()
+        });
+    },
+
     /**
      * Compresor principal para Base64 o File/Blob
      * @param {string|File|Blob} input - String base64 o File/Blob
@@ -24,6 +47,7 @@ export const ImageCompressor = {
                 dataUrl = input.startsWith('data:') ? input : `data:image/jpeg;base64,${input}`;
                 originalBytes = input.length;
             } else if (input instanceof Blob || input instanceof File) {
+                input = await this.decodeForBrowser(input);
                 originalBytes = input.size;
                 dataUrl = await new Promise((resolve, reject) => {
                     const reader = new FileReader();
