@@ -4,7 +4,6 @@
  * Prevents bridge timeouts, out-of-memory crashes, and LocalStorage quota errors.
  */
 import { DebugLogger } from './DebugLogger.js';
-import heic2any from 'heic2any';
 
 export const ImageCompressor = {
     isHeic(input) {
@@ -17,12 +16,15 @@ export const ImageCompressor = {
         if (!this.isHeic(input)) return input;
 
         DebugLogger.info('COMPRESSOR', `Convirtiendo imagen ${input.name || 'HEIC'} a JPEG para compatibilidad web...`);
-        const converted = await heic2any({
+        // Cargamos el decodificador solo cuando hace falta. heic-to mantiene
+        // libheif actualizada; algunas fotos recientes de iPhone no podían
+        // ser interpretadas por el decodificador anterior.
+        const { heicTo } = await import('heic-to');
+        const blob = await heicTo({
             blob: input,
-            toType: 'image/jpeg',
+            type: 'image/jpeg',
             quality: 0.92
         });
-        const blob = Array.isArray(converted) ? converted[0] : converted;
         return new File([blob], `${(input.name || 'imagen').replace(/\.(heic|heif)$/i, '')}.jpg`, {
             type: 'image/jpeg',
             lastModified: input.lastModified || Date.now()

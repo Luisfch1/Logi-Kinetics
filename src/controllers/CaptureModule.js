@@ -319,6 +319,9 @@ export const CaptureCtrl = {
                         if (compressed.base64) await this.processImage(compressed.base64, true);
                     } catch (err) {
                         DebugLogger.error('CAMERA', `Error procesando archivo nativo: ${err.message}`, { err });
+                        if (ImageCompressor.isHeic(file)) {
+                            alert(`No se pudo leer ${file.name}. Este HEIC usa una variante que el navegador no pudo decodificar. Exporta la foto como JPG desde Fotos/Archivos del iPhone e inténtalo de nuevo.`);
+                        }
                     }
                 }
                 resolve();
