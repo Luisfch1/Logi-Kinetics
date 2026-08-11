@@ -329,12 +329,15 @@ export const CaptureCtrl = {
     },
 
     async _importFilesInBatch(files) {
-        const importedItems = [];
+        const pendingItems = [];
         const failures = [];
         const total = files.length;
         let completed = 0;
+        let imported = 0;
         let nextIndex = 0;
         const workerCount = Math.min(2, total);
+        const publishSize = 4;
+        let publishPromise = null;
 
         this.isBulkImporting = true;
         this._updateBulkImportStatus(0, total, 0);
@@ -343,6 +346,24 @@ export const CaptureCtrl = {
         // no una vez por foto.
         const storageProtection = await LogiNative.getStorageProtectionStatus({ request: true });
 
+        const publishPendingItems = async (force = false) => {
+            if (!force && pendingItems.length < publishSize) return;
+            if (publishPromise) return publishPromise;
+
+            const batch = pendingItems.splice(0, pendingItems.length);
+            if (batch.length === 0) return;
+            publishPromise = Promise.resolve().then(() => {
+                State.addItems(batch);
+                imported += batch.length;
+                this.selectedCardId = batch.at(-1)?.id || this.selectedCardId;
+            });
+            try {
+                await publishPromise;
+            } finally {
+                publishPromise = null;
+            }
+        };
+
         const worker = async () => {
             while (nextIndex < total) {
                 const file = files[nextIndex++];
@@ -350,7 +371,10 @@ export const CaptureCtrl = {
                     const compressed = await ImageCompressor.compress(file, 1400, 0.75);
                     if (!compressed.base64) throw new Error('No se pudo convertir la imagen');
                     const item = await this.processImage(compressed.base64, true, true, storageProtection);
-                    if (item) importedItems.push(item);
+                    if (item) {
+                        pendingItems.push(item);
+                        await publishPendingItems();
+                    }
                     else failures.push(file.name);
                 } catch (err) {
                     failures.push(file.name);
@@ -364,12 +388,11 @@ export const CaptureCtrl = {
 
         try {
             await Promise.all(Array.from({ length: workerCount }, worker));
-            State.addItems(importedItems);
-            this.selectedCardId = importedItems.at(-1)?.id || this.selectedCardId;
+            await publishPendingItems(true);
             await this.syncWithState();
         } finally {
             this.isBulkImporting = false;
-            this._finishBulkImportStatus(importedItems.length, total, failures);
+            this._finishBulkImportStatus(imported, total, failures);
         }
     },
 
