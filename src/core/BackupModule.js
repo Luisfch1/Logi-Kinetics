@@ -7,6 +7,14 @@ import { State } from './state.js';
 import { LogiNative } from './capacitor-bridge.js';
 import { DebugLogger } from '../utils/DebugLogger.js';
 
+const toLocalDateString = (value = new Date()) => {
+    const date = new Date(value);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 export const BackupModule = {
     isProcessing: false,
     progressCallback: null,
@@ -174,7 +182,7 @@ export const BackupModule = {
             // Estructura esperada por Control
             const entries = items.map(it => ({
                 id: String(it.id),
-                date: new Date(it.createdAt || Date.now()).toISOString().split('T')[0],
+                date: toLocalDateString(it.createdAt || Date.now()),
                 itemCode: String(it.actividad || it.itemCode || ""),
                 description: String(it.descripcion || ""),
                 status: 'integrated',
@@ -605,14 +613,37 @@ export const BackupModule = {
     },
 
     async _saveAndShareZip(blob, filename) {
+        // En PC, una URL data: duplica el archivo completo en memoria y Chrome
+        // puede truncar o bloquear paquetes grandes. El Blob conserva los bytes
+        // binarios exactos del .lchp que CONTROL espera importar.
+        if (!LogiNative.isNative()) {
+            const packageBlob = new Blob([blob], { type: 'application/zip' });
+            const url = URL.createObjectURL(packageBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
+            DebugLogger.info('BACKUP', `Paquete descargado en PC: ${filename} (${packageBlob.size} bytes)`);
+            return true;
+        }
+
         const reader = new FileReader();
         return new Promise((resolve, reject) => {
             reader.onload = async () => {
-                const base64 = reader.result.split(',')[1];
-                const res = await LogiNative.saveToDocuments(filename, base64);
-                if (res) resolve(true);
-                else reject(new Error("No se pudo guardar el archivo"));
+                try {
+                    const base64 = reader.result.split(',')[1];
+                    const res = await LogiNative.saveToDocuments(filename, base64);
+                    if (res) resolve(true);
+                    else reject(new Error("No se pudo guardar el archivo"));
+                } catch (error) {
+                    reject(error);
+                }
             };
+            reader.onerror = () => reject(new Error("No se pudo preparar el archivo"));
             reader.readAsDataURL(blob);
         });
     },
