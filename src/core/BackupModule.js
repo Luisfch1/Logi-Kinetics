@@ -171,7 +171,6 @@ export const BackupModule = {
         this.progressCallback = onProgress;
 
         try {
-            const zip = new JSZip();
             const project = State.projects.find(p => p.id === projectId);
             if (!project) throw new Error("Proyecto no encontrado");
 
@@ -180,28 +179,10 @@ export const BackupModule = {
             const items = State._allItems.filter(it => it.projectId === projectId);
             
             // Estructura esperada por Control
-            const entries = items.map(it => ({
-                id: String(it.id),
-                date: toLocalDateString(it.createdAt || Date.now()),
-                itemCode: String(it.actividad || it.itemCode || ""),
-                description: String(it.descripcion || ""),
-                status: 'integrated',
-                imageUrl: "",
-                isLocal: true
-            }));
-
-            const backupData = {
-                version: 1,
-                projectId: project.id,
-                projectName: project.name,
-                entries: entries,
-                items: entries
-            };
-
-            zip.file("backup.json", JSON.stringify(backupData, null, 2));
+            const entries = [];
+            const photos = [];
 
             // Agregar Fotos (En la raíz de photos/ con nombre ID.jpg)
-            const photoFolder = zip.folder("photos");
             let count = 0;
             const total = items.length;
 
@@ -213,27 +194,43 @@ export const BackupModule = {
                                it._tempImageSrc || 
                                it.base64;
                 if (base64) {
-                    const parts = base64.split(',');
-                    const rawData = parts.length > 1 ? parts[1] : parts[0];
-                    let ext = 'jpg';
-                    if (parts[0].includes('image/png')) ext = 'png';
-                    else if (parts[0].includes('image/webp')) ext = 'webp';
-                    
-                    photoFolder.file(`${it.id}.${ext}`, rawData, { base64: true });
-                    photoFolder.file(`${it.filename}`, rawData, { base64: true });
-                    zip.file(`photos/${it.filename}`, rawData, { base64: true });
-                    zip.file(`photos/${it.id}.jpg`, rawData, { base64: true });
+                    const base64Data = base64.startsWith('data:')
+                        ? base64
+                        : `data:image/jpeg;base64,${base64}`;
+                    entries.push({
+                        id: String(it.id),
+                        date: toLocalDateString(it.createdAt || Date.now()),
+                        itemCode: String(it.actividad || it.itemCode || ""),
+                        description: String(it.descripcion || ""),
+                        status: 'integrated',
+                        imageUrl: "",
+                        isLocal: true
+                    });
+                    photos.push({ id: String(it.id), base64Data });
                 }
                 count++;
             }
 
-            this._notifyProgress(total, total, "Generando paquete .lchp...");
-            const blob = await zip.generateAsync({ type: "blob" });
+            if (items.length > 0 && photos.length === 0) {
+                throw new Error("No se encontraron imágenes disponibles para incluir en el paquete");
+            }
+
+            // CONTROL en campo lee .lchp como JSON autosuficiente, con las
+            // evidencias en base64 dentro de la propiedad photos.
+            const backupData = {
+                version: 2,
+                projectId: project.id,
+                projectName: project.name,
+                entries,
+                items: entries,
+                photos
+            };
+            this._notifyProgress(total, total, "Generando archivo .lchp para CONTROL...");
+            const blob = new Blob([JSON.stringify(backupData)], { type: 'application/json' });
             const safeName = project.name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
             const filename = `${safeName}_Fotos.lchp`;
             
-            // Guardar usando el Share Bridge (Capacitor/Filesystem)
-            await this._saveAndShareZip(blob, filename);
+            await this._saveAndShareFile(blob, filename, 'application/json');
 
         } catch (e) {
             console.error("Export Control Error:", e);
@@ -613,11 +610,15 @@ export const BackupModule = {
     },
 
     async _saveAndShareZip(blob, filename) {
+        return this._saveAndShareFile(blob, filename, 'application/zip');
+    },
+
+    async _saveAndShareFile(blob, filename, mimeType) {
         // En PC, una URL data: duplica el archivo completo en memoria y Chrome
         // puede truncar o bloquear paquetes grandes. El Blob conserva los bytes
         // binarios exactos del .lchp que CONTROL espera importar.
         if (!LogiNative.isNative()) {
-            const packageBlob = new Blob([blob], { type: 'application/zip' });
+            const packageBlob = new Blob([blob], { type: mimeType });
             const url = URL.createObjectURL(packageBlob);
             const link = document.createElement('a');
             link.href = url;
