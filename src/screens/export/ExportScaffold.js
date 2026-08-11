@@ -6,6 +6,10 @@
 export const ExportScaffold = {
     render(state) {
         console.log("ExportScaffold: Rendering con logo:", state.logo ? "SI (L=" + state.logo.length + ")" : "NO");
+        const isDesktop = document.documentElement.classList.contains('desktop-mode');
+        const dateInputClass = isDesktop
+            ? 'relative z-10 mt-2 h-9 w-full rounded-lg border border-primary/30 bg-black/30 px-3 text-xs font-bold text-white [color-scheme:dark] outline-none focus:border-primary'
+            : 'absolute inset-0 opacity-0 cursor-pointer z-10';
         
         const formatDate = (val) => {
             if(!val) return '...';
@@ -25,38 +29,62 @@ export const ExportScaffold = {
         let dateUI = '';
         if (state.mode === 'dia') {
             dateUI = `
-                <div class="relative bg-white/5 border border-white/10 rounded-2xl p-4 h-20 flex flex-col justify-center active:bg-white/10 transition-all overflow-hidden cursor-pointer">
+                <div class="export-date-card relative bg-white/5 border border-white/10 rounded-2xl p-4 h-20 flex flex-col justify-center active:bg-white/10 transition-all overflow-hidden cursor-pointer">
                     <span class="text-[7px] text-white/20 font-bold uppercase tracking-widest leading-none">FECHA ESPECÍFICA</span>
                     <span id="display-day" class="font-headline font-black text-xs text-white/90 uppercase tracking-tighter italic">${formatDate(state.dateDay)}</span>
-                    <input id="input-date-day" type="date" value="${state.dateDay}" class="absolute inset-0 opacity-0 cursor-pointer z-10">
+                    <input id="input-date-day" type="date" value="${state.dateDay}" class="${dateInputClass}">
                 </div>
             `;
         } else if (state.mode === 'mes') {
             dateUI = `
-                <div class="relative bg-white/5 border border-white/10 rounded-2xl p-4 h-20 flex flex-col justify-center active:bg-white/10 transition-all overflow-hidden cursor-pointer">
+                <div class="export-date-card relative bg-white/5 border border-white/10 rounded-2xl p-4 h-20 flex flex-col justify-center active:bg-white/10 transition-all overflow-hidden cursor-pointer">
                     <span class="text-[7px] text-white/20 font-bold uppercase tracking-widest leading-none">MES DE REPORTE</span>
                     <span id="display-month" class="font-headline font-black text-xs text-white/90 uppercase tracking-tighter italic">${formatMonth(state.dateMonth)}</span>
-                    <input id="input-date-month" type="month" value="${state.dateMonth}" class="absolute inset-0 opacity-0 cursor-pointer z-10">
+                    <input id="input-date-month" type="month" value="${state.dateMonth}" class="${dateInputClass}">
                 </div>
             `;
         } else {
             dateUI = `
                 <div class="grid grid-cols-2 gap-4">
-                    <div class="relative bg-white/5 border border-white/10 rounded-2xl p-4 h-20 flex flex-col justify-center active:bg-white/10 transition-all overflow-hidden cursor-pointer">
+                    <div class="export-date-card relative bg-white/5 border border-white/10 rounded-2xl p-4 h-20 flex flex-col justify-center active:bg-white/10 transition-all overflow-hidden cursor-pointer">
                         <span class="text-[7px] text-white/20 font-bold uppercase tracking-widest leading-none">INICIO</span>
                         <span id="display-start" class="font-headline font-black text-xs text-primary uppercase tracking-tighter italic">${formatDate(state.dateStart)}</span>
-                        <input id="input-date-start" type="date" value="${state.dateStart}" class="absolute inset-0 opacity-0 cursor-pointer z-10">
+                        <input id="input-date-start" type="date" value="${state.dateStart}" class="${dateInputClass}">
                     </div>
-                    <div class="relative bg-white/5 border border-white/10 rounded-2xl p-4 h-20 flex flex-col justify-center active:bg-white/10 transition-all overflow-hidden cursor-pointer">
+                    <div class="export-date-card relative bg-white/5 border border-white/10 rounded-2xl p-4 h-20 flex flex-col justify-center active:bg-white/10 transition-all overflow-hidden cursor-pointer">
                         <span class="text-[7px] text-white/20 font-bold uppercase tracking-widest leading-none">FIN</span>
                         <span id="display-end" class="font-headline font-black text-xs text-white/90 uppercase tracking-tighter italic">${formatDate(state.dateEnd)}</span>
-                        <input id="input-date-end" type="date" value="${state.dateEnd}" class="absolute inset-0 opacity-0 cursor-pointer z-10">
+                        <input id="input-date-end" type="date" value="${state.dateEnd}" class="${dateInputClass}">
                     </div>
                 </div>
             `;
         }
 
         const modeDisplay = state.mode.charAt(0).toUpperCase() + state.mode.slice(1);
+        const modeUI = isDesktop ? `
+            <div class="grid grid-cols-3 gap-3">
+                ${[
+                    ['dia', 'Día'],
+                    ['mes', 'Mes'],
+                    ['rango', 'Rango']
+                ].map(([mode, label]) => `
+                    <button type="button" onclick="window.ExportController?.setMode('${mode}')"
+                        class="h-11 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${state.mode === mode ? 'border-primary bg-primary/10 text-primary shadow-neon' : 'border-white/10 bg-white/5 text-white/40 hover:text-white'}">
+                        ${label}
+                    </button>
+                `).join('')}
+            </div>
+        ` : `
+            <div class="relative bg-white/5 border border-white/10 rounded-2xl h-14 flex items-center px-4 justify-between active:bg-white/10 transition-all cursor-pointer">
+                <span class="font-headline font-black text-xs text-primary uppercase tracking-tight italic">${modeDisplay}</span>
+                <span class="material-symbols-outlined text-primary text-xl">expand_more</span>
+                <select id="select-mode" class="absolute inset-0 opacity-0 cursor-pointer z-10">
+                    <option value="dia" ${state.mode === 'dia' ? 'selected' : ''}>Día</option>
+                    <option value="mes" ${state.mode === 'mes' ? 'selected' : ''}>Mes</option>
+                    <option value="rango" ${state.mode === 'rango' ? 'selected' : ''}>Rango</option>
+                </select>
+            </div>
+        `;
 
         // --- Mapping de Posición para label ---
         const posLabels = {
@@ -79,15 +107,7 @@ export const ExportScaffold = {
                 <!-- 1. MODO -->
                 <div class="space-y-3">
                     <span class="text-[8px] text-white/30 font-black uppercase tracking-[0.3em] pl-1">MODO</span>
-                    <div class="relative bg-white/5 border border-white/10 rounded-2xl h-14 flex items-center px-4 justify-between active:bg-white/10 transition-all cursor-pointer">
-                        <span class="font-headline font-black text-xs text-primary uppercase tracking-tight italic">${modeDisplay}</span>
-                        <span class="material-symbols-outlined text-primary text-xl">expand_more</span>
-                        <select id="select-mode" class="absolute inset-0 opacity-0 cursor-pointer z-10">
-                            <option value="dia" ${state.mode === 'dia' ? 'selected' : ''}>Día</option>
-                            <option value="mes" ${state.mode === 'mes' ? 'selected' : ''}>Mes</option>
-                            <option value="rango" ${state.mode === 'rango' ? 'selected' : ''}>Rango</option>
-                        </select>
-                    </div>
+                    ${modeUI}
                 </div>
 
                 <!-- 2. FECHA -->

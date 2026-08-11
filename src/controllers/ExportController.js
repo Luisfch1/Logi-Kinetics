@@ -13,14 +13,24 @@ import {
     Header, Footer, BorderStyle, HeightRule, VerticalAlign, ShadingType, PageNumber, TableLayoutType
 } from 'docx';
 
+// Los inputs de fecha trabajan con el calendario local. toISOString() usa UTC
+// y podía adelantar un día para usuarios de América.
+const toLocalDateInputValue = (value = new Date()) => {
+    const date = value instanceof Date ? value : new Date(value);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 export const ExportModule = {
     isProcessing: false,
     config: {
         mode: 'dia',
-        dateDay: new Date().toISOString().split('T')[0],
-        dateMonth: new Date().toISOString().split('T')[0].substring(0, 7),
-        dateStart: new Date().toISOString().split('T')[0],
-        dateEnd: new Date().toISOString().split('T')[0],
+        dateDay: toLocalDateInputValue(),
+        dateMonth: toLocalDateInputValue().substring(0, 7),
+        dateStart: toLocalDateInputValue(),
+        dateEnd: toLocalDateInputValue(),
         format: 'pdf',
         template: 'Grid6.pdf',
         logo: null,
@@ -1763,8 +1773,7 @@ export const ExportModule = {
             // Agrupar por fecha local
             const groups = {};
             filtered.forEach(photo => {
-                const d = new Date(photo.createdAt || Date.now());
-                const dateStr = d.toISOString().split('T')[0];
+                const dateStr = toLocalDateInputValue(photo.createdAt || Date.now());
                 if (!groups[dateStr]) groups[dateStr] = [];
                 groups[dateStr].push(photo);
             });

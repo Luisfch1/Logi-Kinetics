@@ -54,6 +54,14 @@
     margin-bottom: 0.25rem !important;
 }
 
+/* En PC, el selector nativo de fecha se muestra completo y no queda oculto
+   detrás de la tarjeta táctil diseñada para celular. */
+.desktop-mode .export-date-card {
+    height: auto !important;
+    min-height: 7.25rem;
+    overflow: visible !important;
+}
+
 :root {
     /* Stitch Palette - Dynamic Accent */
     --primary: #cafd00;
