@@ -62,6 +62,25 @@
     overflow: visible !important;
 }
 
+/* En PC, la fecha de trabajo debe poder verse y modificarse antes de cargar
+   evidencias para días diferentes al actual. El móvil conserva el selector
+   táctil superpuesto. */
+.desktop-mode #input-capture-date {
+    position: relative !important;
+    inset: auto !important;
+    z-index: 20 !important;
+    width: 10rem !important;
+    height: 2rem !important;
+    margin-left: auto !important;
+    padding: 0 0.5rem !important;
+    border: 1px solid var(--primary-border) !important;
+    border-radius: 0.5rem !important;
+    background: rgba(0, 0, 0, 0.45) !important;
+    color: var(--text-primary) !important;
+    opacity: 1 !important;
+    color-scheme: dark;
+}
+
 :root {
     /* Stitch Palette - Dynamic Accent */
     --primary: #cafd00;

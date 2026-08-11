@@ -11,6 +11,13 @@ import { SpeechRecognition } from '@capacitor-community/speech-recognition';
 import { ImageCompressor } from '../utils/ImageCompressor.js';
 import { DebugLogger } from '../utils/DebugLogger.js';
 
+const toLocalDateInputValue = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 export const CaptureCtrl = {
     selectedCardId: null,
     localItems: [],
@@ -76,7 +83,7 @@ export const CaptureCtrl = {
                 if (day === today) label = 'HOY, ' + label;
                 displayDate.innerText = label.toUpperCase();
             }
-            if (inputDate) inputDate.value = this.captureDate.toISOString().split('T')[0];
+            if (inputDate) inputDate.value = toLocalDateInputValue(this.captureDate);
 
             // Renderizado Incremental para máxima fluidez
             this.renderMemoryGridIncremental();
@@ -345,6 +352,7 @@ export const CaptureCtrl = {
         // La solicitud de almacenamiento persistente se hace una vez por lote,
         // no una vez por foto.
         const storageProtection = await LogiNative.getStorageProtectionStatus({ request: true });
+        const selectedCaptureDate = new Date(this.captureDate);
 
         const publishPendingItems = async (force = false) => {
             if (!force && pendingItems.length < publishSize) return;
@@ -370,7 +378,7 @@ export const CaptureCtrl = {
                 try {
                     const compressed = await ImageCompressor.compress(file, 1400, 0.75);
                     if (!compressed.base64) throw new Error('No se pudo convertir la imagen');
-                    const item = await this.processImage(compressed.base64, true, true, storageProtection);
+                    const item = await this.processImage(compressed.base64, true, true, storageProtection, selectedCaptureDate);
                     if (item) {
                         pendingItems.push(item);
                         await publishPendingItems();
@@ -464,10 +472,21 @@ export const CaptureCtrl = {
         return null;
     },
 
-    async processImage(rawBase64, isAlreadyCompressed = false, deferStateUpdate = false, storageProtection = null) {
+    async processImage(rawBase64, isAlreadyCompressed = false, deferStateUpdate = false, storageProtection = null, captureDateOverride = null) {
         if (!rawBase64) return;
         const id = 'cap_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
         const filename = id + '.jpg';
+        const selectedDate = captureDateOverride || this.captureDate;
+        const now = new Date();
+        const createdAt = new Date(
+            selectedDate.getFullYear(),
+            selectedDate.getMonth(),
+            selectedDate.getDate(),
+            now.getHours(),
+            now.getMinutes(),
+            now.getSeconds(),
+            now.getMilliseconds()
+        ).getTime();
         let act = (document.getElementById('current-activity')?.innerText || 'GENERAL').trim().toUpperCase();
         if (act === 'SELECCIONAR...') act = 'GENERAL';
 
@@ -489,10 +508,10 @@ export const CaptureCtrl = {
             id,
             descripcion: '',
             actividad: act,
-            createdAt: Date.now(),
+            createdAt,
             projectId: State.currentProject?.id || 'p_default',
             filename,
-            _pndate: new Date().toDateString(),
+            _pndate: new Date(createdAt).toDateString(),
             _pnid: State._norm(State.currentProject?.id || 'p_default'),
             _pnname: State._norm(State.currentProject?.name || '')
         };
