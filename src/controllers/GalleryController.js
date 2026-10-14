@@ -23,6 +23,7 @@ class GalleryController {
         this.renderBatchId = 0;
         this.renderTimer = null;
         this.lastDate = null; // Trackeo de Sticky Headers
+        this.thumbnailObserver = null;
     }
 
     async init() {
@@ -72,6 +73,8 @@ class GalleryController {
         // v193.2-OAK: Limpiar botón global al salir de la pantalla
         const btnToggle = document.getElementById('btn-gallery-grid-toggle');
         if (btnToggle) btnToggle.classList.add('hidden');
+        this.thumbnailObserver?.disconnect();
+        this.thumbnailObserver = null;
     }
 
     updateToggleIcon() {
@@ -101,6 +104,18 @@ class GalleryController {
 
     _executeIncrementalRender() {
         if (!this.container) return;
+
+        this.thumbnailObserver?.disconnect();
+        this.thumbnailObserver = 'IntersectionObserver' in window
+            ? new IntersectionObserver(entries => {
+                entries.forEach(entry => {
+                    if (!entry.isIntersecting) return;
+                    const item = State.items.find(candidate => String(candidate.id) === entry.target.dataset.itemId);
+                    if (item) this.loadThumbnail(item);
+                    this.thumbnailObserver?.unobserve(entry.target);
+                });
+            }, { rootMargin: '300px 0px' })
+            : null;
         
         // v193.3-OAK: Aplicar clases de cuadrícula dinámica y gap
         const cols = this._getGridColumns();
@@ -220,7 +235,13 @@ class GalleryController {
 
             const card = GalleryCardItem.render(item, this.isSelectionMode, this.selectedIds.has(item.id), cols);
             if (this.container) this.container.insertAdjacentHTML('beforeend', card);
-            this.loadThumbnail(item);
+            const image = document.getElementById(`gal-img-${item.id}`);
+            if (image && this.thumbnailObserver) {
+                image.dataset.itemId = String(item.id);
+                this.thumbnailObserver.observe(image);
+            } else {
+                this.loadThumbnail(item);
+            }
         });
     }
 

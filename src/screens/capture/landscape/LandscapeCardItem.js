@@ -20,7 +20,7 @@ export const LandscapeCardItem = {
                     <span class="material-symbols-outlined text-[16px] font-bold pointer-events-none">close</span>
                 </button>
                 <div class="relative w-[116px] h-[116px] rounded-[1.5rem] overflow-hidden border border-white/5 shrink-0 bg-[#050505]">
-                    <img id="img-${item.id}" src="${imgPath}" class="w-full h-full object-cover transition-opacity duration-500" />
+                    <img id="img-${item.id}" src="${imgPath}" loading="lazy" decoding="async" class="w-full h-full object-cover transition-opacity duration-500" />
                     <div class="absolute bottom-2 right-2 px-2 py-1 bg-black/80 rounded-lg flex items-center gap-1 text-[8px] font-black tracking-tight">
                         <span class="material-symbols-outlined text-[10px] ${item.synced ? 'text-primary' : 'text-white/20'}">${item.synced ? 'cloud_done' : 'cloud_off'}</span>
                         <span class="text-white/30">${timeStr}</span>

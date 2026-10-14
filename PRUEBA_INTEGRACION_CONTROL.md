@@ -1,9 +1,14 @@
-# Prueba Logi 0.0.15 — Google Drive + CONTROL
+# Prueba Logi 0.0.16 — PWA + Google Drive + CONTROL
 
-## 1. Instalar sin borrar datos
+## 1. Actualizar la PWA sin borrar datos
 
-Instale `Logi-0.0.15-pruebas.apk` encima de la versión actual. No desinstale la
-aplicación y no pulse **Borrar datos**, porque Android eliminaría la base local.
+Abra Logi con internet, espere unos segundos, ciérrela completamente y vuelva a
+abrirla. En Configuración debe aparecer `Logi Kinetics v0.0.16`. No use
+**Borrar datos** ni elimine la PWA: allí están los proyectos y fotos locales.
+
+Al primer arranque, Logi compacta automáticamente el almacenamiento antiguo.
+Las instalaciones anteriores podían guardar varias copias Base64 de una misma
+foto. La migración conserva una sola copia Blob canónica y elimina sus alias.
 
 ## 2. Verificar las miniaturas
 
@@ -12,9 +17,9 @@ aplicación y no pulse **Borrar datos**, porque Android eliminaría la base loca
 3. Cierre Logi desde aplicaciones recientes y vuelva a abrirlo.
 4. Repita después de 10 a 15 minutos y reinicie el teléfono una vez.
 
-La versión 0.0.15 ya no usa las verificaciones paralelas que estaban venciendo
-por tiempo en Android. Si una URL visual del WebView falla, Logi reconstruye la
-miniatura desde la fotografía guardada en el almacenamiento privado.
+La versión 0.0.16 muestra las fotos de la PWA mediante URLs Blob ligeras y ya no
+carga múltiples cadenas Base64 completas en la galería. Después de actualizar,
+restaure una sola vez el respaldo si Logi informa que faltan archivos.
 
 ## 3. Preparación única de Google
 
@@ -22,6 +27,8 @@ En un mismo proyecto de Google Cloud:
 
 - habilite **Google Drive API** y **Gmail API**;
 - cree el cliente OAuth de escritorio que usa CONTROL;
+- cree un cliente OAuth de tipo **Aplicación web** para la PWA;
+- agregue `https://luisfch1.github.io` como origen JavaScript autorizado;
 - cree un cliente OAuth Android con paquete `com.antigravity.logi`;
 - para este APK de prueba registre la huella SHA-1
   `BE:B4:4B:16:68:48:42:FA:88:1B:51:58:81:60:7C:88:89:D5:7C:BA`;
@@ -30,7 +37,9 @@ En un mismo proyecto de Google Cloud:
 
 El JSON del cliente de escritorio debe guardarse como
 `Control/electron/google-oauth-client.json`. Logi no necesita guardar secretos
-ni archivos JSON: Android recibe el permiso mediante Google Play Services.
+ni archivos JSON. En la PWA se pega una sola vez el ID público del cliente web
+terminado en `.apps.googleusercontent.com`; el token de acceso solo vive en
+memoria y se descarta al cerrar la aplicación.
 
 ## 4. Probar el recorrido completo
 

@@ -20,7 +20,7 @@ export const PortraitCardItem = {
                     <span class="material-symbols-outlined text-[12px] font-bold pointer-events-none">close</span>
                 </button>
                 <div class="relative w-28 h-28 rounded-[1.5rem] overflow-hidden border border-white/5 shrink-0 bg-[#050505]">
-                    <img id="img-${item.id}" src="${imgPath}" 
+                    <img id="img-${item.id}" src="${imgPath}" loading="lazy" decoding="async"
                          onerror="this.style.border='2px solid red'; console.error('Load fail:', this.src)"
                          class="w-full h-full object-cover transition-opacity duration-500" />
                     <div class="absolute bottom-1.5 right-1.5 px-2 py-0.5 bg-black/80 rounded-lg flex items-center gap-1 text-[8px] font-black tracking-tight">

@@ -488,10 +488,7 @@ export const BackupModule = {
                         if (content && content.length > 0) {
                             const base64 = await photoFile.async("base64");
                             if (base64 && base64.trim().length > 0) {
-                                await LogiNative.storeBlob(cleanItem.filename, base64);
-                                await LogiNative.storeBlob(`${cleanItem.id}.jpg`, base64);
-                                await LogiNative.storeBlob(cleanItem.id, base64);
-                                photoLoaded = true;
+                                photoLoaded = await LogiNative.storeBlob(cleanItem.filename, base64);
                             }
                         }
                     }
@@ -517,9 +514,7 @@ export const BackupModule = {
                                         reader.onloadend = () => res(reader.result);
                                         reader.readAsDataURL(blobData);
                                     });
-                                    await LogiNative.storeBlob(cleanItem.filename, base64);
-                                    await LogiNative.storeBlob(`${cleanItem.id}.jpg`, base64);
-                                    photoLoaded = true;
+                                    photoLoaded = await LogiNative.storeBlob(cleanItem.filename, base64);
                                     console.log(`[Backup Adaptativo] Foto ${cleanItem.id} rescatada localmente desde DB Legacy`);
                                 }
                                 legacyDb.close();

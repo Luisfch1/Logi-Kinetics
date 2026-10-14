@@ -27,6 +27,8 @@ export class ProjectController {
         // Cloud Dialog mapping
         this.cloudDialog = document.getElementById('cloud-dialog-overlay');
         this.cloudInputProject = document.getElementById('cloud-input-project');
+        this.cloudWebClientContainer = document.getElementById('cloud-web-client-container');
+        this.cloudInputWebClient = document.getElementById('cloud-input-web-client');
         this.cloudStatus = document.getElementById('cloud-status');
         this.btnCloudCancel = document.getElementById('cloud-btn-cancel');
         this.btnCloudSave = document.getElementById('cloud-btn-save');
@@ -188,7 +190,12 @@ export class ProjectController {
         const project = State.projects.find(p => p.id === projectId);
         if (!project) return;
 
+        const { GoogleDriveSvc } = await import('../core/GoogleDriveService.js');
+        const isWeb = GoogleDriveSvc.isWeb();
+
         this.cloudInputProject.value = project.controlProjectId || '';
+        this.cloudWebClientContainer?.classList.toggle('hidden', !isWeb);
+        if (this.cloudInputWebClient) this.cloudInputWebClient.value = isWeb ? GoogleDriveSvc.getWebClientId() : '';
         this.cloudStatus.innerText = project.googleConnected
             ? `Conectado: ${project.googleEmail || 'cuenta Google'} · Las fotos nuevas se enviarán automáticamente.`
             : 'Cuenta de Google sin conectar.';
@@ -236,11 +243,16 @@ export class ProjectController {
             this.btnCloudSave.onclick = async () => {
                 const controlProjectId = this.cloudInputProject.value.trim();
                 if (!controlProjectId) return alert('Copie el ID del proyecto que aparece en CONTROL.');
+                if (isWeb) {
+                    const clientId = this.cloudInputWebClient?.value.trim() || '';
+                    if (!clientId) return alert('Escriba el ID de cliente web de Google para conectar esta PWA.');
+                    if (!clientId.endsWith('.apps.googleusercontent.com')) return alert('El ID de cliente web de Google no tiene el formato esperado.');
+                    GoogleDriveSvc.setWebClientId(clientId);
+                }
                 this.btnCloudSave.disabled = true;
                 this.btnCloudSave.innerText = 'Abriendo Google...';
                 try {
                     await State.updateProjectGoogleConfig(projectId, { ...project, controlProjectId });
-                    const { GoogleDriveSvc } = await import('../core/GoogleDriveService.js');
                     const connection = await GoogleDriveSvc.connectProject({ ...project, controlProjectId }, { selectAccount: true });
                     this.cloudStatus.innerText = `Conectado: ${connection.email || 'cuenta Google'}.`;
                     this.btnCloudSyncAll.classList.remove('hidden');

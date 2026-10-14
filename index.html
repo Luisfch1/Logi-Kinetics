@@ -88,7 +88,7 @@
     <div id="projects-overlay"></div>
     <div id="debug-console-overlay" class="fixed inset-0 z-[9999] hidden bg-black/95 backdrop-blur-xl p-8 overflow-y-auto font-mono text-[10px] text-primary">
         <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
-            <h2 class="text-xl font-black italic text-primary">ULTIMATE DEBUG CONSOLE (v0.0.15 · GOOGLE BRIDGE)</h2>
+            <h2 class="text-xl font-black italic text-primary">ULTIMATE DEBUG CONSOLE (v0.0.16 · PWA STORAGE + GOOGLE)</h2>
             <button onclick="document.getElementById('debug-console-overlay').classList.add('hidden')" class="bg-primary text-black px-4 py-2 rounded-full font-black">CERRAR</button>
         </div>
         <div id="debug-console-content" class="space-y-6">
@@ -126,6 +126,11 @@
                     <label class="text-[9px] uppercase font-black text-white/30 tracking-tighter ml-1">ID del proyecto en CONTROL</label>
                     <input id="cloud-input-project" type="text" autocapitalize="off" autocomplete="off" class="w-full bg-white/5 border border-white/10 rounded-xl h-11 px-4 text-[10px] text-white placeholder:text-white/10 outline-none focus:border-primary/50 transition-all" placeholder="Copie aquí el ID mostrado por CONTROL">
                 </div>
+                <div id="cloud-web-client-container" class="space-y-1 hidden">
+                    <label class="text-[9px] uppercase font-black text-white/30 tracking-tighter ml-1">ID de cliente web de Google · configuración única</label>
+                    <input id="cloud-input-web-client" type="text" autocapitalize="off" autocomplete="off" spellcheck="false" class="w-full bg-white/5 border border-white/10 rounded-xl h-11 px-4 text-[10px] text-white placeholder:text-white/10 outline-none focus:border-primary/50 transition-all" placeholder="000000000000-xxxx.apps.googleusercontent.com">
+                    <p class="px-1 text-[8px] leading-relaxed text-white/25">Es un identificador público, no una contraseña. Se guarda únicamente en este dispositivo.</p>
+                </div>
                 <div id="cloud-status" class="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-[10px] leading-relaxed text-white/50">Cuenta de Google sin conectar.</div>
             </div>
 
@@ -153,11 +158,11 @@
     <script src="/lib/xlsx.full.min.js?v=2026-04-03-1845"></script>
     <script src="/lib/pdf-lib.min.js?v=2026-04-03-1845"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-    <script type="module" src="/src/main.js?v=0.0.15"></script>
+    <script type="module" src="/src/main.js?v=0.0.16"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=0.0.15')
+                navigator.serviceWorker.register('./sw.js?v=0.0.16')
                     .then(reg => console.log('Service Worker registrado con éxito:', reg.scope))
                     .catch(err => console.error('Error al registrar Service Worker:', err));
             });

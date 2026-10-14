@@ -50,6 +50,8 @@ export const GalleryCardItem = {
                         <!-- Imagen de Fondo -->
                 <img id="${imgId}"
                      src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                     loading="lazy"
+                     decoding="async"
                      class="w-full h-full ${imageFitClass} ${opacityClass} group-hover:opacity-100 transition-opacity duration-500"
                      alt="Capture ${item.id}">
 

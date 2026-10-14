@@ -7,6 +7,12 @@ const DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
 const GoogleAuthorization = registerPlugin('GoogleAuthorization');
+const GOOGLE_IDENTITY_SRC = 'https://accounts.google.com/gsi/client';
+const GOOGLE_SCOPES = 'openid email profile https://www.googleapis.com/auth/drive.file';
+const WEB_CLIENT_ID_KEY = 'logi_google_web_client_id';
+
+let webAuthorization = null;
+let googleIdentityPromise = null;
 
 const escapeDriveQuery = value => String(value || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 const localDate = value => {
@@ -24,22 +30,112 @@ const dataUrlToBlob = dataUrl => {
     return new Blob([bytes], { type: mime });
 };
 
-export const GoogleDriveSvc = {
-    async authorize({ selectAccount = false } = {}) {
-        if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') {
-            throw new Error('La conexión directa con Google Drive está disponible en la aplicación Android de Logi.');
+const loadGoogleIdentity = () => {
+    if (window.google?.accounts?.oauth2) return Promise.resolve(window.google);
+    if (googleIdentityPromise) return googleIdentityPromise;
+    googleIdentityPromise = new Promise((resolve, reject) => {
+        const existing = document.querySelector(`script[src="${GOOGLE_IDENTITY_SRC}"]`);
+        const script = existing || document.createElement('script');
+        const onReady = () => window.google?.accounts?.oauth2
+            ? resolve(window.google)
+            : reject(new Error('Google Identity Services no quedó disponible.'));
+        script.addEventListener('load', onReady, { once: true });
+        script.addEventListener('error', () => reject(new Error('No fue posible cargar el acceso seguro de Google. Verifique la conexión a internet.')), { once: true });
+        if (!existing) {
+            script.src = GOOGLE_IDENTITY_SRC;
+            script.async = true;
+            script.defer = true;
+            document.head.appendChild(script);
         }
+    }).catch(error => {
+        googleIdentityPromise = null;
+        throw error;
+    });
+    return googleIdentityPromise;
+};
+
+const fetchGoogleProfile = async accessToken => {
+    try {
+        const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        if (!response.ok) return {};
+        return await response.json();
+    } catch (_) {
+        return {};
+    }
+};
+
+export const GoogleDriveSvc = {
+    isWeb: () => !Capacitor.isNativePlatform(),
+
+    getWebClientId() {
+        return String(import.meta.env.VITE_GOOGLE_CLIENT_ID || localStorage.getItem(WEB_CLIENT_ID_KEY) || '').trim();
+    },
+
+    setWebClientId(clientId) {
+        const value = String(clientId || '').trim();
+        if (value) localStorage.setItem(WEB_CLIENT_ID_KEY, value);
+        else localStorage.removeItem(WEB_CLIENT_ID_KEY);
+        webAuthorization = null;
+        return value;
+    },
+
+    async _authorizeWeb({ selectAccount = false } = {}) {
+        const now = Date.now();
+        if (!selectAccount && webAuthorization?.accessToken && webAuthorization.expiresAt > now + 60000) {
+            return webAuthorization;
+        }
+
+        const clientId = this.getWebClientId();
+        if (!clientId) {
+            throw new Error('Falta el ID de cliente web de Google. Escríbalo en esta ventana para realizar la configuración única.');
+        }
+        await loadGoogleIdentity();
+
+        const tokenResponse = await new Promise((resolve, reject) => {
+            const tokenClient = window.google.accounts.oauth2.initTokenClient({
+                client_id: clientId,
+                scope: GOOGLE_SCOPES,
+                callback: response => {
+                    if (response?.error) reject(new Error(response.error_description || response.error));
+                    else resolve(response);
+                },
+                error_callback: error => reject(new Error(error?.message || 'Google cerró o bloqueó la autorización.'))
+            });
+            tokenClient.requestAccessToken({ prompt: selectAccount ? 'select_account consent' : '' });
+        });
+
+        if (!tokenResponse?.access_token) throw new Error('Google no entregó autorización para Drive.');
+        const profile = await fetchGoogleProfile(tokenResponse.access_token);
+        webAuthorization = {
+            accessToken: tokenResponse.access_token,
+            expiresAt: Date.now() + (Number(tokenResponse.expires_in || 3600) * 1000),
+            email: profile.email || '',
+            displayName: profile.name || ''
+        };
+        return webAuthorization;
+    },
+
+    async authorize({ selectAccount = false } = {}) {
+        if (!Capacitor.isNativePlatform()) return this._authorizeWeb({ selectAccount });
+        if (Capacitor.getPlatform() !== 'android') throw new Error('La conexión nativa con Google Drive requiere Android.');
         const result = await GoogleAuthorization.authorize({ selectAccount });
         if (!result?.accessToken) throw new Error('Google no entregó autorización para Drive.');
         return result;
     },
 
-    async _authorizedFetch(url, options = {}) {
+    async _authorizedFetch(url, options = {}, allowRetry = true) {
         const auth = await this.authorize();
         const response = await fetch(url, {
             ...options,
             headers: { ...(options.headers || {}), Authorization: `Bearer ${auth.accessToken}` }
         });
+        if (response.status === 401 && allowRetry && this.isWeb()) {
+            webAuthorization = null;
+            await this.authorize();
+            return this._authorizedFetch(url, options, false);
+        }
         if (!response.ok) {
             const body = await response.text();
             let reason = body;
