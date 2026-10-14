@@ -218,7 +218,16 @@ export const LogiNative = {
                     req.onerror = () => resolve(false);
                 });
             }
-            return !!(await LogiNative.getBlobUri(filename));
+            const cleanName = String(filename).trim();
+            const noExt = cleanName.replace(/\.jpg$/i, '');
+            const noCap = noExt.replace(/^cap_/, '');
+            const candidates = Array.from(new Set([cleanName, `${noExt}.jpg`, `${noCap}.jpg`, noExt]));
+            for (const name of candidates) {
+                const path = `${DATA_DIR}/blobs/${name}`;
+                if (await LogiNative.fileExists(path, 'data', 10000)) return true;
+                if (await LogiNative.fileExists(path, 'documents', 10000)) return true;
+            }
+            return false;
         } catch (_) { return false; }
     },
 
@@ -287,11 +296,11 @@ export const LogiNative = {
         }
     },
 
-    fileExists: async (path, directory = 'data') => {
+    fileExists: async (path, directory = 'data', timeoutMs = 10000) => {
         if (!LogiNative.isNative()) return false;
         try {
             const dir = directory === 'documents' ? Directory.Documents : PRIMARY_DIR;
-            await withTimeout(Filesystem.stat({ path, directory: dir }));
+            await withTimeout(Filesystem.stat({ path, directory: dir }), timeoutMs);
             return true;
         } catch (e) { return false; }
     },
@@ -312,7 +321,7 @@ export const LogiNative = {
             data_dir: DATA_DIR,
             base_uri: _dynamicBlobsUri,
             migrated: localStorage.getItem('logi_migrated_v189'),
-            version: '0.0.14-REPORT-STUDIO'
+            version: '0.0.15-GOOGLE-BRIDGE'
         };
     },
 
@@ -863,28 +872,28 @@ export const LogiNative = {
             const rawId = noCap.replace(/\.jpg$/i, '');
             const candidates = Array.from(new Set([cleanName, `${cleanName}.jpg`, `${rawId}.jpg`, cleanName.replace('.jpg', '')]));
 
+            // getUri es una operación local barata. Evitamos hacer stat() antes
+            // de cada miniatura: en Android, muchas verificaciones simultáneas
+            // saturaban el puente nativo y vencían por timeout aunque la foto
+            // siguiera almacenada correctamente.
             for (const c of candidates) {
                 const path = `${DATA_DIR}/blobs/${c}`;
+                const res = await Filesystem.getUri({ path, directory: PRIMARY_DIR }).catch(() => null);
+                if (res?.uri) return Capacitor.convertFileSrc(res.uri);
+            }
 
-                // INTENTO 1: Ubicación Primaria (Data)
-                const existsPrimary = await LogiNative.fileExists(path);
-                if (existsPrimary) {
-                    const res = await Filesystem.getUri({ path, directory: PRIMARY_DIR }).catch(() => null);
-                    if (res) return Capacitor.convertFileSrc(res.uri);
-                }
-
-                // INTENTO 2: Scavenger Fallback (Documents)
-                const existsLegacy = await LogiNative.fileExists(path, 'documents');
-                if (existsLegacy) {
-                    const legacyRes = await Filesystem.getUri({ path, directory: LEGACY_DIR }).catch(() => null);
-                    if (legacyRes) {
-                        DebugLogger.warn('BRIDGE', `Scavenger encontró blob en LEGACY: ${c}`);
-                        return Capacitor.convertFileSrc(legacyRes.uri);
-                    }
+            // Compatibilidad con instalaciones antiguas que guardaban en Documents.
+            for (const c of candidates) {
+                const path = `${DATA_DIR}/blobs/${c}`;
+                if (!(await LogiNative.fileExists(path, 'documents', 10000))) continue;
+                const legacyRes = await Filesystem.getUri({ path, directory: LEGACY_DIR }).catch(() => null);
+                if (legacyRes?.uri) {
+                    DebugLogger.warn('BRIDGE', `Scavenger encontró blob en LEGACY: ${c}`);
+                    return Capacitor.convertFileSrc(legacyRes.uri);
                 }
             }
 
-            DebugLogger.warn('BRIDGE', `getBlobUri Nativo: Archivo no existe en Data ni Documents (${filename})`);
+            DebugLogger.warn('BRIDGE', `getBlobUri Nativo: No se pudo construir URI para ${filename}`);
             return null;
         } catch (e) {
             DebugLogger.error('BRIDGE', `getBlobUri Nativo Error (${filename}): ${e.message}`, { error: e });

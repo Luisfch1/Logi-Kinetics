@@ -26,7 +26,7 @@ export const ProjectItem = {
 
                 <!-- Controles CRUD -->
                 <div class="flex items-center gap-2 pr-1">
-                    <button class="btn-cloud-project w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center ${project.supabaseUrl ? 'text-primary' : 'text-white/40'} hover:text-primary transition-colors" 
+                    <button class="btn-cloud-project w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center ${project.googleConnected ? 'text-primary' : 'text-white/40'} hover:text-primary transition-colors"
                             onclick="event.stopPropagation(); window.ProjectModule.promptCloudConfig('${project.id}')">
                         <span class="material-symbols-outlined text-[18px]">cloud_sync</span>
                     </button>

@@ -21,7 +21,7 @@ import { LogiNative } from './core/capacitor-bridge.js';
 import { DebugLogger } from './utils/DebugLogger.js';
 import { defineCustomElements } from '@ionic/pwa-elements/loader';
 
-const APP_VERSION = '0.0.14';
+const APP_VERSION = '0.0.15';
 
 // El modo horizontal de la app móvil no debe confundirse con una ventana de PC.
 // En escritorio conservamos la navegación y el paquete visual completo.
@@ -91,9 +91,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             alert(`ALERTA DE RESPALDO: faltan ${result.missing} de ${result.checked} fotos verificadas. No borres los datos de Chrome; genera o restaura un respaldo antes de continuar.`);
         });
 
-        const retryCloudBackups = () => import('./core/SupabaseService.js')
-            .then(({ SupabaseSvc }) => SupabaseSvc.retryPendingConfiguredProjects())
-            .catch(error => DebugLogger.warn('CLOUD', `No fue posible reintentar el respaldo: ${error.message}`));
+        const retryCloudBackups = () => {
+            const configured = State.projects.filter(project => project.googleConnected);
+            if (configured.length === 0) return Promise.resolve();
+            return import('./core/GoogleDriveService.js').then(async ({ GoogleDriveSvc }) => {
+                for (const project of configured) {
+                    await GoogleDriveSvc.syncProject(project.id).catch(error => {
+                        DebugLogger.warn('CLOUD', `Sincronización pendiente para ${project.name}: ${error.message}`);
+                    });
+                }
+            });
+        };
         window.addEventListener('online', retryCloudBackups);
         window.addEventListener('logi-state-loaded', retryCloudBackups, { once: true });
     } catch (e) {

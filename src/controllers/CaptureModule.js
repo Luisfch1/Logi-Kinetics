@@ -141,6 +141,17 @@ export const CaptureCtrl = {
             item._tempImageSrc = uri;
             const imgEl = document.getElementById(`img-${item.id}`);
             if (imgEl) {
+                imgEl.onerror = async () => {
+                    // Android puede invalidar temporalmente una URL del WebView
+                    // al reabrir la app. La foto sigue en Data; la rehidratamos
+                    // directamente sin exigir al usuario restaurar un respaldo.
+                    const fallback = await LogiNative.readBlobAsBase64(item.filename);
+                    if (fallback && imgEl.src !== fallback) {
+                        item._tempImageSrc = fallback;
+                        imgEl.src = fallback;
+                        imgEl.style.opacity = '1';
+                    }
+                };
                 imgEl.src = uri;
                 imgEl.style.opacity = '1';
             }
@@ -552,25 +563,13 @@ export const CaptureCtrl = {
             this.selectedCardId = id;
         }
 
-        // --- CLOUD SYNC BRIDGE (v2026-05-02) ---
-        if (State.currentProject?.supabaseUrl) {
-            import('../core/SupabaseService.js').then(({ SupabaseSvc }) => {
-                SupabaseSvc.processFullSync(data, {
-                    supabaseUrl: State.currentProject.supabaseUrl,
-                    supabaseKey: State.currentProject.supabaseKey,
-                    controlProjectId: State.currentProject.controlProjectId
-                }).then(success => {
-                    if (success) {
-                        DebugLogger.info('CLOUD', `Sincronización en nube OK para ${id}`);
-                    } else {
-                        DebugLogger.error('CLOUD', `Sincronización en nube falló para ${id}`);
-                    }
-                }).catch(err => {
-                    DebugLogger.error('CLOUD', `Excepción en sincronización nube para ${id}: ${err.message}`);
-                });
-            }).catch(err => {
-                DebugLogger.error('CLOUD', `Error al cargar SupabaseService: ${err.message}`);
-            });
+        // La copia local siempre se confirma primero. Drive funciona como cola
+        // de transporte: si no hay internet, la evidencia queda pendiente y la
+        // sincronización masiva la reintentará sin duplicarla.
+        if (State.currentProject?.googleConnected) {
+            import('../core/GoogleDriveService.js')
+                .then(({ GoogleDriveSvc }) => GoogleDriveSvc.queuePhoto(data))
+                .catch(err => DebugLogger.warn('CLOUD', `Carga a Drive pendiente para ${id}: ${err.message}`));
         }
         return data;
     },

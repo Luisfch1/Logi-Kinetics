@@ -1,6 +1,6 @@
 {
   "name": "kinetic",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "private": true,
   "type": "module",
   "scripts": {
@@ -25,7 +25,6 @@
     "@capacitor/preferences": "^8.0.1",
     "@capacitor/share": "^8.0.1",
     "@ionic/pwa-elements": "^3.4.0",
-    "@supabase/supabase-js": "^2.105.1",
     "docx": "^9.6.1",
     "heic-to": "^1.5.2"
   }

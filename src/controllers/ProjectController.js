@@ -26,9 +26,8 @@ export class ProjectController {
 
         // Cloud Dialog mapping
         this.cloudDialog = document.getElementById('cloud-dialog-overlay');
-        this.cloudInputUrl = document.getElementById('cloud-input-url');
-        this.cloudInputKey = document.getElementById('cloud-input-key');
         this.cloudInputProject = document.getElementById('cloud-input-project');
+        this.cloudStatus = document.getElementById('cloud-status');
         this.btnCloudCancel = document.getElementById('cloud-btn-cancel');
         this.btnCloudSave = document.getElementById('cloud-btn-save');
         this.btnCloudSyncAll = document.getElementById('cloud-btn-sync-all');
@@ -55,7 +54,7 @@ export class ProjectController {
         projects.forEach(p => {
             const isActive = State.currentProject && State.currentProject.id === p.id;
             const activeClass = isActive ? 'active' : '';
-            const isCloudSynced = !!p.supabaseUrl;
+            const isCloudSynced = !!p.googleConnected;
 
             html += `
             <div class="project-card ${activeClass} rounded-[2rem] p-6 flex items-center gap-4 cursor-pointer" onclick="ProjectModule.selectProject('${p.id}')">
@@ -189,12 +188,13 @@ export class ProjectController {
         const project = State.projects.find(p => p.id === projectId);
         if (!project) return;
 
-        this.cloudInputUrl.value = project.supabaseUrl || '';
-        this.cloudInputKey.value = project.supabaseKey || '';
         this.cloudInputProject.value = project.controlProjectId || '';
+        this.cloudStatus.innerText = project.googleConnected
+            ? `Conectado: ${project.googleEmail || 'cuenta Google'} · Las fotos nuevas se enviarán automáticamente.`
+            : 'Cuenta de Google sin conectar.';
 
         // Mostrar botón de Sincronización Masiva solo si ya está configurado
-        if (project.supabaseUrl) {
+        if (project.googleConnected) {
             this.btnCloudSyncAll.classList.remove('hidden');
         } else {
             this.btnCloudSyncAll.classList.add('hidden');
@@ -215,56 +215,42 @@ export class ProjectController {
             this.btnCloudCancel.onclick = () => cleanup();
 
             this.btnCloudSyncAll.onclick = async () => {
-                const nid = State._norm(projectId);
-                const projectItems = State._allItems.filter(it => (it._pnid || State._norm(it.projectId)) === nid);
-                const otherItems = State._allItems.filter(it => (it._pnid || State._norm(it.projectId)) !== nid);
-
-                let includeOrphans = false;
-                if (otherItems.length > 0) {
-                    const confirmMigrate = await this.showDialog({
-                        title: 'MIGRAR EVIDENCIAS',
-                        message: `Tienes ${otherItems.length} fotos que pertenecen a otros proyectos o backups. ¿Deseas vincularlas a "${project.name.toUpperCase()}" y subirlas a la nube?`,
-                        confirmText: 'SÍ, MIGRAR TODO',
-                        cancelText: 'SOLO ESTE PROYECTO',
-                        icon: 'sync_alt'
-                    });
-                    includeOrphans = !!confirmMigrate;
-                }
-
-                this.btnCloudSyncAll.innerText = 'Sincronizando...';
+                this.btnCloudSyncAll.innerText = 'Preparando...';
                 this.btnCloudSyncAll.disabled = true;
-
-                const { SupabaseSvc } = await import('../core/SupabaseService.js');
-                const count = await SupabaseSvc.syncEntireProject(projectId, {
-                    supabaseUrl: this.cloudInputUrl.value.trim(),
-                    supabaseKey: this.cloudInputKey.value.trim(),
-                    controlProjectId: this.cloudInputProject.value.trim()
-                }, includeOrphans);
-
-                this.btnCloudSyncAll.innerText = 'Sincronizar todo ahora';
-                this.btnCloudSyncAll.disabled = false;
-
-                alert(`¡Sincronización terminada! Se procesaron ${count} evidencias.`);
-                cleanup();
+                try {
+                    const { GoogleDriveSvc } = await import('../core/GoogleDriveService.js');
+                    const result = await GoogleDriveSvc.syncProject(projectId, progress => {
+                        this.btnCloudSyncAll.innerText = `Enviando ${progress.current}/${progress.total}`;
+                    });
+                    const failed = result.failures.length ? ` ${result.failures.length} quedaron pendientes.` : '';
+                    alert(`Sincronización terminada: ${result.uploaded} enviadas, ${result.skipped} ya estaban en Drive.${failed}`);
+                    cleanup();
+                } catch (error) {
+                    alert(error.message || String(error));
+                } finally {
+                    this.btnCloudSyncAll.innerText = 'Sincronizar todo ahora';
+                    this.btnCloudSyncAll.disabled = false;
+                }
             };
 
             this.btnCloudSave.onclick = async () => {
-                const config = {
-                    supabaseUrl: this.cloudInputUrl.value.trim(),
-                    supabaseKey: this.cloudInputKey.value.trim(),
-                    controlProjectId: this.cloudInputProject.value.trim()
-                };
-
-                if (config.supabaseUrl && !config.supabaseUrl.startsWith('http')) {
-                    alert('La URL de Supabase debe ser válida.');
-                    return;
+                const controlProjectId = this.cloudInputProject.value.trim();
+                if (!controlProjectId) return alert('Copie el ID del proyecto que aparece en CONTROL.');
+                this.btnCloudSave.disabled = true;
+                this.btnCloudSave.innerText = 'Abriendo Google...';
+                try {
+                    await State.updateProjectGoogleConfig(projectId, { ...project, controlProjectId });
+                    const { GoogleDriveSvc } = await import('../core/GoogleDriveService.js');
+                    const connection = await GoogleDriveSvc.connectProject({ ...project, controlProjectId }, { selectAccount: true });
+                    this.cloudStatus.innerText = `Conectado: ${connection.email || 'cuenta Google'}.`;
+                    this.btnCloudSyncAll.classList.remove('hidden');
+                    alert('Cuenta conectada. Las fotos nuevas viajarán a CONTROL por Google Drive.');
+                } catch (error) {
+                    alert(error.message || String(error));
+                } finally {
+                    this.btnCloudSave.disabled = false;
+                    this.btnCloudSave.innerText = project.googleConnected ? 'Cambiar cuenta Google' : 'Conectar cuenta Google';
                 }
-
-                await State.updateProjectCloudConfig(projectId, config);
-                cleanup();
-
-                // Notificar éxito con un efecto visual si es posible
-                console.log('[ProjectController] Cloud Config Updated');
             };
         });
     }

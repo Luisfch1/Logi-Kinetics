@@ -71,10 +71,10 @@ class StateManager {
         if (item.filename) item.filename = clean(item.filename);
         if (item.projectId) item.projectId = clean(item.projectId);
 
-        // Supabase Cloud Config Fields
-        if (item.supabaseUrl) item.supabaseUrl = clean(item.supabaseUrl);
-        if (item.supabaseKey) item.supabaseKey = clean(item.supabaseKey);
+        // Integración Google Drive / CONTROL
         if (item.controlProjectId) item.controlProjectId = clean(item.controlProjectId);
+        if (item.googleEmail) item.googleEmail = clean(item.googleEmail);
+        if (item.driveInboxId) item.driveInboxId = clean(item.driveInboxId);
 
         // --- REPARACIÓN DE EMERGENCIA LEGACY ---
         // Si el projectId es 'p_default' (el fallback anterior) pero tiene un 'proyecto' real, lo re-vinculamos.
@@ -437,12 +437,14 @@ class StateManager {
         }
     }
 
-    async updateProjectCloudConfig(id, config) {
+    async updateProjectGoogleConfig(id, config) {
         const p = this.projects.find(p => this._norm(p.id) === this._norm(id));
         if (p) {
-            p.supabaseUrl = config.supabaseUrl;
-            p.supabaseKey = config.supabaseKey;
             p.controlProjectId = config.controlProjectId;
+            p.googleConnected = !!config.googleConnected;
+            p.googleEmail = config.googleEmail || '';
+            p.driveInboxId = config.driveInboxId || '';
+            p.lastDriveSyncAt = config.lastDriveSyncAt || p.lastDriveSyncAt || '';
             await LogiNative.dbPut('meta', p);
             this.notify('project');
         }
