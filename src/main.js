@@ -21,7 +21,7 @@ import { LogiNative } from './core/capacitor-bridge.js';
 import { DebugLogger } from './utils/DebugLogger.js';
 import { defineCustomElements } from '@ionic/pwa-elements/loader';
 
-const APP_VERSION = '0.0.19';
+const APP_VERSION = '0.0.20';
 
 // El modo horizontal de la app móvil no debe confundirse con una ventana de PC.
 // En escritorio conservamos la navegación y el paquete visual completo.

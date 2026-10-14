@@ -82,7 +82,7 @@ export const GoogleDriveSvc = {
         return value;
     },
 
-    async _authorizeWeb({ selectAccount = false } = {}) {
+    async _authorizeWeb({ selectAccount = false, loginHint = '' } = {}) {
         const now = Date.now();
         if (!selectAccount && webAuthorization?.accessToken && webAuthorization.expiresAt > now + 60000) {
             return webAuthorization;
@@ -98,13 +98,17 @@ export const GoogleDriveSvc = {
             const tokenClient = window.google.accounts.oauth2.initTokenClient({
                 client_id: clientId,
                 scope: GOOGLE_SCOPES,
+                hint: String(loginHint || '').trim() || undefined,
                 callback: response => {
                     if (response?.error) reject(new Error(response.error_description || response.error));
                     else resolve(response);
                 },
                 error_callback: error => reject(new Error(error?.message || 'Google cerró o bloqueó la autorización.'))
             });
-            tokenClient.requestAccessToken({ prompt: selectAccount ? 'select_account consent' : '' });
+            tokenClient.requestAccessToken({
+                prompt: selectAccount ? 'select_account consent' : '',
+                hint: String(loginHint || '').trim() || undefined
+            });
         });
 
         if (!tokenResponse?.access_token) throw new Error('Google no entregó autorización para Drive.');
@@ -118,8 +122,8 @@ export const GoogleDriveSvc = {
         return webAuthorization;
     },
 
-    async authorize({ selectAccount = false } = {}) {
-        if (!Capacitor.isNativePlatform()) return this._authorizeWeb({ selectAccount });
+    async authorize({ selectAccount = false, loginHint = State.currentProject?.googleEmail || '' } = {}) {
+        if (!Capacitor.isNativePlatform()) return this._authorizeWeb({ selectAccount, loginHint });
         if (Capacitor.getPlatform() !== 'android') throw new Error('La conexión nativa con Google Drive requiere Android.');
         const result = await GoogleAuthorization.authorize({ selectAccount });
         if (!result?.accessToken) throw new Error('Google no entregó autorización para Drive.');
