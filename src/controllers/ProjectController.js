@@ -205,7 +205,7 @@ export class ProjectController {
         const isWeb = GoogleDriveSvc.isWeb();
 
         this.cloudInputProject.value = project.controlProjectId || '';
-        this.cloudWebClientContainer?.classList.toggle('hidden', !isWeb);
+        this.cloudWebClientContainer?.classList.toggle('hidden', !isWeb || Boolean(GoogleDriveSvc.getWebClientId()));
         if (this.cloudInputWebClient) this.cloudInputWebClient.value = isWeb ? GoogleDriveSvc.getWebClientId() : '';
         this.cloudStatus.innerText = project.googleConnected
             ? `Conectado: ${project.googleEmail || 'cuenta Google'} · Las fotos nuevas se enviarán automáticamente.`

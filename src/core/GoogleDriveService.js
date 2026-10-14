@@ -10,6 +10,7 @@ const GoogleAuthorization = registerPlugin('GoogleAuthorization');
 const GOOGLE_IDENTITY_SRC = 'https://accounts.google.com/gsi/client';
 const GOOGLE_SCOPES = 'openid email profile https://www.googleapis.com/auth/drive.file';
 const WEB_CLIENT_ID_KEY = 'logi_google_web_client_id';
+const DEFAULT_WEB_CLIENT_ID = '973027208876-roknun3juq30pu8h0johmq5cj0ga9gv4.apps.googleusercontent.com';
 
 let webAuthorization = null;
 let googleIdentityPromise = null;
@@ -70,7 +71,7 @@ export const GoogleDriveSvc = {
     isWeb: () => !Capacitor.isNativePlatform(),
 
     getWebClientId() {
-        return String(import.meta.env.VITE_GOOGLE_CLIENT_ID || localStorage.getItem(WEB_CLIENT_ID_KEY) || '').trim();
+        return String(import.meta.env.VITE_GOOGLE_CLIENT_ID || localStorage.getItem(WEB_CLIENT_ID_KEY) || DEFAULT_WEB_CLIENT_ID).trim();
     },
 
     setWebClientId(clientId) {
