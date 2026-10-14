@@ -1,12 +1,13 @@
-# Prueba Logi 0.0.16 — PWA + Google Drive + CONTROL
+# Prueba Logi 0.0.17 — PWA + Google Drive + CONTROL
 
 ## 1. Actualizar la PWA sin borrar datos
 
 Abra Logi con internet, espere unos segundos, ciérrela completamente y vuelva a
-abrirla. En Configuración debe aparecer `Logi Kinetics v0.0.16`. No use
+abrirla. En Configuración debe aparecer `Logi Kinetics v0.0.17`. No use
 **Borrar datos** ni elimine la PWA: allí están los proyectos y fotos locales.
 
-Al primer arranque, Logi compacta automáticamente el almacenamiento antiguo.
+Después de abrir, Logi compacta en segundo plano el almacenamiento antiguo sin
+bloquear la interfaz.
 Las instalaciones anteriores podían guardar varias copias Base64 de una misma
 foto. La migración conserva una sola copia Blob canónica y elimina sus alias.
 
@@ -17,7 +18,7 @@ foto. La migración conserva una sola copia Blob canónica y elimina sus alias.
 3. Cierre Logi desde aplicaciones recientes y vuelva a abrirlo.
 4. Repita después de 10 a 15 minutos y reinicie el teléfono una vez.
 
-La versión 0.0.16 muestra las fotos de la PWA mediante URLs Blob ligeras y ya no
+La versión 0.0.17 muestra las fotos de la PWA mediante URLs Blob ligeras y ya no
 carga múltiples cadenas Base64 completas en la galería. Después de actualizar,
 restaure una sola vez el respaldo si Logi informa que faltan archivos.
 

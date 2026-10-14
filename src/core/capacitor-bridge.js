@@ -252,10 +252,14 @@ export const LogiNative = {
                 console.error("[Bridge] Error sanando LocalStorage:", err);
             }
             await getDB();
-            // Repara y compacta antes de que las pantallas intenten dibujar
-            // cientos de miniaturas. Las instalaciones antiguas podían tener
-            // hasta doce copias Base64 de una misma foto.
-            await LogiNative.compactWebPhotoStorage();
+            // La interfaz debe abrir inmediatamente incluso con respaldos muy
+            // grandes. La compactación se ejecuta después, cediendo el arranque
+            // a la UI y sin repetirse una vez completada.
+            setTimeout(() => {
+                LogiNative.compactWebPhotoStorage().catch(error => {
+                    DebugLogger.warn('STORAGE', `Compactación PWA aplazada: ${error.message}`);
+                });
+            }, 2500);
             // IndexedDB es de tipo "best effort" por defecto. Registramos el
             // estado ahora y la solicitud se hace al tomar la primera foto,
             // cuando Chrome tiene una interacción del usuario para evaluarla.
@@ -302,6 +306,8 @@ export const LogiNative = {
      */
     compactWebPhotoStorage: async () => {
         if (LogiNative.isNative()) return { compacted: 0, missing: 0 };
+        const maintenanceKey = 'logi_web_blob_compaction_v2';
+        if (localStorage.getItem(maintenanceKey) === 'done') return { compacted: 0, missing: 0, skipped: true };
         const db = await getDB();
         if (!db) return { compacted: 0, missing: _webMeta.items_meta.length };
         let compacted = 0;
@@ -322,6 +328,13 @@ export const LogiNative = {
                 missing++;
                 continue;
             }
+            // Las restauraciones hechas con 0.0.16+ ya escriben una única copia
+            // Blob canónica: no necesitan ninguna operación adicional.
+            if (record.key === canonical && record.value instanceof Blob) {
+                compacted++;
+                if (compacted % 40 === 0) await new Promise(resolve => setTimeout(resolve, 0));
+                continue;
+            }
             const aliases = webBlobCandidates(canonical, item.id).filter(key => key !== canonical);
             await new Promise(resolve => {
                 const tx = db.transaction(STORE_NAME, 'readwrite');
@@ -333,7 +346,9 @@ export const LogiNative = {
                 tx.onabort = resolve;
             });
             compacted++;
+            if (compacted % 20 === 0) await new Promise(resolve => setTimeout(resolve, 0));
         }
+        localStorage.setItem(maintenanceKey, 'done');
         DebugLogger.info('STORAGE', `Compactación PWA terminada: ${compacted} fotos, ${missing} faltantes.`);
         return { compacted, missing };
     },
@@ -455,7 +470,7 @@ export const LogiNative = {
             data_dir: DATA_DIR,
             base_uri: _dynamicBlobsUri,
             migrated: localStorage.getItem('logi_migrated_v189'),
-            version: '0.0.16-PWA-STORAGE-GOOGLE'
+            version: '0.0.17-FAST-PWA-START'
         };
     },
 
