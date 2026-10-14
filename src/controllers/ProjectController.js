@@ -8,6 +8,7 @@ export class ProjectController {
         this.btnOpen = null;
         this.btnClose = null;
         this.btnAdd = null;
+        this.returnTab = 'capture';
     }
 
     init() {
@@ -45,7 +46,17 @@ export class ProjectController {
     }
 
     async openManager() {
+        if (State.currentTab !== 'projects') {
+            this.returnTab = State.currentTab || 'capture';
+        }
         State.setTab('projects');
+    }
+
+    closeManager() {
+        const destination = this.returnTab && this.returnTab !== 'projects'
+            ? this.returnTab
+            : 'capture';
+        State.setTab(destination);
     }
 
     renderList() {
@@ -86,7 +97,7 @@ export class ProjectController {
 
     async selectProject(id) {
         await State.setProject(id);
-        State.setTab('capture');
+        this.closeManager();
     }
 
     // === DIÁLOGOS PERSONALIZADOS ===

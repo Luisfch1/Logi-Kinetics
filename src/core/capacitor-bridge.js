@@ -470,7 +470,7 @@ export const LogiNative = {
             data_dir: DATA_DIR,
             base_uri: _dynamicBlobsUri,
             migrated: localStorage.getItem('logi_migrated_v189'),
-            version: '0.0.17-FAST-PWA-START'
+            version: '0.0.18-CONTEXT-NAVIGATION'
         };
     },
 

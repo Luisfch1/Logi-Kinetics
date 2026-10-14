@@ -55,7 +55,7 @@ export const ProjectView = {
         const btnClose = document.getElementById('btn-close-projects');
         if(btnClose) {
             btnClose.onclick = () => {
-                State.setTab('capture');
+                ProjectModule.closeManager();
             };
         }
 
