@@ -3,6 +3,17 @@
  * Gestor de Estado Global con Sanitización y Actualización Atómica.
  */
 import { LogiNative } from './capacitor-bridge.js';
+const driveMetadataTimers = new Map();
+
+const queueDriveMetadata = (item) => {
+    clearTimeout(driveMetadataTimers.get(item.id));
+    driveMetadataTimers.set(item.id, setTimeout(() => {
+        driveMetadataTimers.delete(item.id);
+        import('./GoogleDriveService.js')
+            .then(({ GoogleDriveSvc }) => GoogleDriveSvc.queuePhoto(item))
+            .catch(error => console.warn('[Drive] Metadatos pendientes:', error));
+    }, 900));
+};
 
 class StateManager {
     constructor() {
@@ -299,8 +310,10 @@ class StateManager {
         const item = this._allItems.find(i => i.id === id);
         if (item) {
             item.descripcion = text;
+            item.synced = false;
             await LogiNative.dbPut('items_meta', { ...item, _tempImageSrc: undefined });
             this.notify('item_update');
+            queueDriveMetadata(item);
         }
     }
 
@@ -317,8 +330,10 @@ class StateManager {
         const item = this._allItems.find(i => i.id === id);
         if (item) {
             item.actividad = activity;
+            item.synced = false;
             await LogiNative.dbPut('items_meta', { ...item, _tempImageSrc: undefined });
             this.notify('item_update');
+            queueDriveMetadata(item);
         }
     }
 

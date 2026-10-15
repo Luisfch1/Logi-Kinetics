@@ -14,6 +14,7 @@ const DEFAULT_WEB_CLIENT_ID = '973027208876-roknun3juq30pu8h0johmq5cj0ga9gv4.app
 
 let webAuthorization = null;
 let googleIdentityPromise = null;
+const photoUploads = new Map();
 
 const escapeDriveQuery = value => String(value || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 const localDate = value => {
@@ -196,10 +197,33 @@ export const GoogleDriveSvc = {
     },
 
     async uploadPhoto(item, project = State.currentProject) {
+        const key = `${project?.id}:${item?.id}`;
+        const previous = photoUploads.get(key) || Promise.resolve();
+        const task = previous.catch(() => undefined).then(() => this._uploadPhoto(item, project));
+        photoUploads.set(key, task);
+        try { return await task; }
+        finally { if (photoUploads.get(key) === task) photoUploads.delete(key); }
+    },
+
+    async _uploadPhoto(item, project = State.currentProject) {
         if (!item?.id || !item?.filename || !project?.googleConnected || !project?.controlProjectId) return false;
+        const sentDescription = item.descripcion || '';
+        const sentActivity = item.actividad || '';
+        const description = JSON.stringify({
+            id: item.id,
+            date: localDate(item.createdAt),
+            itemCode: sentActivity,
+            description: sentDescription,
+            originalFileName: item.filename
+        });
         const existing = await this._alreadyUploaded(item.id);
         if (existing) {
-            await State.updateItemSyncStatus(item.id, true);
+            await this._authorizedFetch(`${DRIVE_API}/files/${encodeURIComponent(existing.id)}?fields=id`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ description, appProperties: { itemCode: String(sentActivity).slice(0, 120) } })
+            });
+            await State.updateItemSyncStatus(item.id, item.descripcion === sentDescription && item.actividad === sentActivity);
             return true;
         }
 
@@ -216,18 +240,12 @@ export const GoogleDriveSvc = {
         const metadata = {
             name: `${item.id}.jpg`,
             parents: [inboxId],
-            description: JSON.stringify({
-                id: item.id,
-                date: localDate(item.createdAt),
-                itemCode: item.actividad || '',
-                description: item.descripcion || '',
-                originalFileName: item.filename
-            }),
+            description,
             appProperties: {
                 controlProjectId: String(project.controlProjectId),
                 controlPhotoId: String(item.id),
                 photoDate: localDate(item.createdAt),
-                itemCode: String(item.actividad || '').slice(0, 120)
+                itemCode: String(sentActivity).slice(0, 120)
             }
         };
         const form = new FormData();
@@ -237,7 +255,7 @@ export const GoogleDriveSvc = {
             method: 'POST',
             body: form
         });
-        await State.updateItemSyncStatus(item.id, true);
+        await State.updateItemSyncStatus(item.id, (item.descripcion || '') === sentDescription && (item.actividad || '') === sentActivity);
         DebugLogger.event('CLOUD', `Foto enviada a Google Drive: ${item.id}`);
         return true;
     },
@@ -254,8 +272,12 @@ export const GoogleDriveSvc = {
         for (let index = 0; index < items.length; index++) {
             const item = items[index];
             try {
-                if (item.synced) skipped++;
-                else if (await this.uploadPhoto(item, project)) uploaded++;
+                // Revisar también metadatos de fotos enviadas por versiones anteriores.
+                const wasSynced = item.synced;
+                if (await this.uploadPhoto(item, project)) {
+                    if (wasSynced) skipped++;
+                    else uploaded++;
+                }
             } catch (error) {
                 failures.push({ id: item.id, error: error.message || String(error) });
                 DebugLogger.error('CLOUD', `No se pudo enviar ${item.id}: ${error.message}`, { error });
