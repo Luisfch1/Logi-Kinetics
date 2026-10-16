@@ -1,9 +1,10 @@
 {
   "name": "kinetic",
-  "version": "0.0.20",
+  "version": "0.0.21",
   "private": true,
   "type": "module",
   "scripts": {
+    "test:photos": "node --experimental-vm-modules tests/photo-actions.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"

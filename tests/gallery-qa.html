@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Prueba aislada de galería Logi</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+<style>body{background:#080808;color:white;font:14px system-ui;margin:0;padding:16px}button{padding:12px;margin:6px;border-radius:12px;background:#cafd00;color:black}#fixture{height:680px;width:100%;position:relative}dialog::backdrop{background:#000a}:root{--primary:#cafd00}#result{white-space:pre-line}</style></head>
+<body><h1>Prueba aislada · 12 fotos ficticias</h1><button id="share">Compartir 12</button><button id="reject">Simular lote rechazado</button><button id="cancel">Simular cancelación</button><button id="failed">Simular foto ilegible</button><button id="move">Mover 12</button><pre id="result">Sin envíos externos. Sin fotos reales.</pre><div id="fixture"></div>
+<script type="module">
+import '../src/style.css';
+import {sharePhotosDialog,movePhotosDialog} from '../src/screens/gallery/PhotoActionsDialog.js';
+import {GalleryScaffold} from '../src/screens/gallery/GalleryScaffold.js';
+document.getElementById('fixture').innerHTML=GalleryScaffold.render();
+document.getElementById('gallery-selection-bar').classList.add('active');
+document.getElementById('selection-count').textContent='12 SELECCIONADAS';
+const result=document.getElementById('result');
+const items=Array.from({length:12},(_,i)=>({id:String(i),filename:`foto-${i+1}.jpg`,projectId:'a'}));
+let mode='ok',calls=0;
+Object.defineProperty(navigator,'canShare',{configurable:true,value:({files})=>mode!=='reject'||files.length<=6});
+Object.defineProperty(navigator,'share',{configurable:true,value:({files})=>{
+ if(!navigator.userActivation.isActive) return Promise.reject(new DOMException('Sin gesto','NotAllowedError'));
+ if(mode==='cancel')return Promise.reject(new DOMException('Cancelado','AbortError'));
+ calls++;result.textContent=`Llamada ${calls}: ${files.length} archivos; gesto activo. No se enviaron a ninguna app real.`;return Promise.resolve();
+}});
+const process=async item=>mode==='failed'&&item.id==='4'?null:{filename:item.filename,base64:'data:image/jpeg;base64,/9j/2Q=='};
+for(const [id,value] of [['share','ok'],['reject','reject'],['cancel','cancel'],['failed','failed']])document.getElementById(id).onclick=()=>{mode=value;sharePhotosDialog(items,process);};
+document.getElementById('move').onclick=()=>movePhotosDialog({items,source:{id:'a',name:'Proyecto equivocado'},projects:[{id:'a',name:'Proyecto equivocado'},{id:'b',name:'Proyecto correcto'}],move:async id=>{result.textContent=`Traslado simulado: 12 fotos al proyecto ${id}.`;return 12;}});
+</script></body></html>

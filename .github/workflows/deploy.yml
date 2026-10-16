@@ -38,6 +38,9 @@ jobs:
       - name: Compilar proyecto (Vite)
         run: npm run build
 
+      - name: Verificar traslado y sincronización de fotos
+        run: npm run test:photos
+
       - name: Configurar Pages
         uses: actions/configure-pages@v4
 

@@ -3,6 +3,7 @@
  * Gestor de Estado Global con Sanitización y Actualización Atómica.
  */
 import { LogiNative } from './capacitor-bridge.js';
+import { preparePhotoMove } from './photoActions.js';
 const driveMetadataTimers = new Map();
 
 const queueDriveMetadata = (item) => {
@@ -287,9 +288,11 @@ class StateManager {
         this.items = this._allItems
             .filter(item => {
                 // v191.4: MODO RESCATE (Si no hay items, intentar buscar huérfanos por nombre de nuevo)
-                const match = item._pnid === pid ||
-                    (item._pnname === targetName && targetName !== '') ||
-                    (item._pnlegacy === targetName && targetName !== '');
+                const match = item.projectId
+                    ? this._norm(item.projectId) === pid
+                    : item._pnid === pid ||
+                        (item._pnname === targetName && targetName !== '') ||
+                        (item._pnlegacy === targetName && targetName !== '');
 
                 return match;
             });
@@ -317,8 +320,9 @@ class StateManager {
         }
     }
 
-    async updateItemSyncStatus(id, synced) {
+    async updateItemSyncStatus(id, synced, expectedProjectId, expectedPhotoId) {
         const item = this._allItems.find(i => i.id === id);
+        if (expectedProjectId !== undefined && (String(item?.projectId) !== String(expectedProjectId) || String(item?.drivePhotoId || item?.id) !== String(expectedPhotoId))) return;
         if (item) {
             item.synced = !!synced;
             await LogiNative.dbPut('items_meta', { ...item, _tempImageSrc: undefined });
@@ -335,6 +339,31 @@ class StateManager {
             this.notify('item_update');
             queueDriveMetadata(item);
         }
+    }
+
+    async movePhotos(ids, targetId, sourceId = this.currentProject?.id) {
+        if (!this.isLoaded) throw new Error('Espera a que termine de cargar la galería.');
+        const source = this.projects.find(p => String(p.id) === String(sourceId));
+        const target = this.projects.find(p => String(p.id) === String(targetId) && !p.isOrphan);
+        if (!source || !target) throw new Error('El proyecto ya no está disponible.');
+        const replacements = preparePhotoMove(this._allItems, ids, source, target);
+        for (const item of replacements) {
+            item._pnid = this._norm(target.id);
+            item._pnname = this._norm(target.name);
+            item._pnlegacy = '';
+            item.updated_at = Date.now();
+        }
+        // La persistencia se completa antes de quitar fotos del origen en memoria.
+        LogiNative.movePhotoMetadata(replacements);
+        const byId = new Map(replacements.map(item => [String(item.id), item]));
+        this._allItems = this._allItems.map(item => byId.get(String(item.id)) || item);
+        for (const item of replacements) {
+            clearTimeout(driveMetadataTimers.get(item.id));
+            driveMetadataTimers.delete(item.id);
+        }
+        this._filterItems();
+        this.notify('items');
+        return replacements.length;
     }
 
     setTab(tab) {

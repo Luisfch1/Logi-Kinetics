@@ -6,6 +6,7 @@ import { Capacitor } from '@capacitor/core';
 import { State } from './state.js';
 import { CaptureDialog } from '../screens/capture/CaptureDialog.js';
 import { DebugLogger } from '../utils/DebugLogger.js';
+import { commitPhotoMove } from './photoActions.js';
 
 const PRIMARY_DIR = Directory.Data; // Nexus Shield: Switch to Data for maximum speed (v189)
 const DATA_DIR = 'Logi';
@@ -470,7 +471,7 @@ export const LogiNative = {
             data_dir: DATA_DIR,
             base_uri: _dynamicBlobsUri,
             migrated: localStorage.getItem('logi_migrated_v189'),
-            version: '0.0.20-MOBILE-OAUTH'
+            version: '0.0.21-GALLERY'
         };
     },
 
@@ -506,6 +507,14 @@ export const LogiNative = {
     },
 
     getBlobBaseUrlSync: () => _dynamicBlobsUri,
+
+    movePhotoMetadata: (replacements) => {
+        if (LogiNative.isNative()) throw new Error('El traslado está disponible por ahora en la PWA.');
+        const ids = new Set(_webMeta.items_meta.map(item => String(item.id)));
+        if (replacements.some(item => !ids.has(String(item.id)))) throw new Error('Una fotografía ya no está guardada. No se trasladó ninguna.');
+        _webMeta.items_meta = commitPhotoMove(localStorage, _webMeta.items_meta, replacements);
+        return true;
+    },
 
     dbPut: async (store, item) => {
         // v2026-05-04: Soporte para Sincronización Delta
@@ -1120,11 +1129,12 @@ export const LogiNative = {
                 console.error("Error al preparar archivo para compartir:", e);
             }
         }
+        if (uris.length !== processedItems.length) throw new Error('No se pudieron preparar todas las fotos. No se compartió ninguna.');
         if (uris.length > 0) {
             try {
                 await Share.share({ title: 'Fotos Logi', files: uris });
             } catch (shareErr) {
-                console.warn("Share multiple files failed:", shareErr);
+                throw shareErr;
             }
         }
     },

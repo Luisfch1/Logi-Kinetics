@@ -46,24 +46,28 @@ export const GalleryScaffold = {
 
                 <!-- 3. BARRA DE SELECCIÓN FLOTANTE (Fix: pointer-events-none por defecto) -->
                 <div id="gallery-selection-bar" 
-                     class="fixed bottom-24 left-1/2 -translate-x-1/2 w-[90%] glass-panel rounded-[2.5rem] p-3 flex items-center justify-between gap-2 z-[100] translate-y-48 opacity-0 pointer-events-none transition-all duration-500 border border-primary/20">
+                     class="fixed bottom-24 left-1/2 -translate-x-1/2 w-[94%] max-w-lg glass-panel rounded-[2.5rem] p-2 flex items-center justify-between gap-1 z-[100] translate-y-48 opacity-0 pointer-events-none transition-all duration-500 border border-primary/20">
                     
                     <button onclick="window.GalleryController?.cancelSelection()"
-                            class="w-12 h-12 flex items-center justify-center rounded-full bg-white/5 text-white/40 active:scale-90 transition-transform">
+                            aria-label="Cancelar selección" class="w-11 h-11 shrink-0 flex items-center justify-center rounded-full bg-white/5 text-white/40 active:scale-90 transition-transform">
                         <span class="material-symbols-outlined text-xl">close</span>
                     </button>
 
                     <div class="flex-1 text-center">
-                        <span id="selection-count" class="font-headline font-black text-primary text-[15px] italic">0 SELECCIONADAS</span>
+                        <span id="selection-count" class="font-headline font-black text-primary text-[11px] italic">0 SELECCIONADAS</span>
                     </div>
 
-                    <div class="flex gap-2">
+                    <div class="flex gap-1 shrink-0">
                         <button onclick="window.GalleryController?.bulkShare()"
-                                class="w-12 h-12 flex items-center justify-center rounded-full bg-white/5 text-primary shadow-neon active:scale-90 transition-transform">
+                                title="Compartir" aria-label="Compartir fotos" class="w-11 h-11 flex items-center justify-center rounded-full bg-white/5 text-primary shadow-neon active:scale-90 transition-transform">
                             <span class="material-symbols-outlined text-xl">share</span>
                         </button>
+                        <button onclick="window.GalleryController?.bulkMove()" title="Mover a otro proyecto" aria-label="Mover a otro proyecto"
+                                class="w-11 h-11 flex items-center justify-center rounded-full bg-white/5 text-primary active:scale-90 transition-transform">
+                            <span class="material-symbols-outlined text-xl">drive_file_move</span>
+                        </button>
                         <button onclick="window.GalleryController?.bulkDelete()"
-                                class="w-12 h-12 flex items-center justify-center rounded-full bg-red-500/10 text-red-500 active:scale-90 transition-transform">
+                                title="Eliminar" aria-label="Eliminar fotos" class="w-11 h-11 flex items-center justify-center rounded-full bg-red-500/10 text-red-500 active:scale-90 transition-transform">
                             <span class="material-symbols-outlined text-xl">delete</span>
                         </button>
                     </div>

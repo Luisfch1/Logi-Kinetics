@@ -1,4 +1,4 @@
-const CACHE_NAME = 'logi-kinetics-cache-v20';
+const CACHE_NAME = 'logi-kinetics-cache-v21';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -9,7 +9,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter((name) => name !== CACHE_NAME)
+          .filter((name) => name.startsWith('logi-kinetics-cache-') && name !== CACHE_NAME)
           .map((name) => caches.delete(name))
       );
     }).then(() => self.clients.claim())
@@ -24,7 +24,7 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   // --- Network-First strategy para index.html (Navegación) ---
-  if (req.mode === 'navigate' || req.headers.get('accept').includes('text/html')) {
+  if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html')) {
     event.respondWith(
       fetch(req).then((networkResponse) => {
         if (networkResponse.ok) {

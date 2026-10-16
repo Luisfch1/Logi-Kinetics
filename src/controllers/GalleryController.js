@@ -10,6 +10,7 @@ import { GalleryEditOverlay } from '../screens/gallery/GalleryEditOverlay.js';
 import { ItemSelector } from '../screens/capture/ItemSelector.js';
 import { CaptureDialog } from '../screens/capture/CaptureDialog.js';
 import { ExportModule } from './ExportController.js';
+import { sharePhotosDialog, movePhotosDialog } from '../screens/gallery/PhotoActionsDialog.js';
 class GalleryController {
     constructor() {
         this.filterText = '';
@@ -418,10 +419,7 @@ class GalleryController {
         }
         
         // v191.9-TURBO: Procesar con marca de agua antes de enviar a WhatsApp
-        const res = await window.ExportModule.processForShare(item);
-        if (res) {
-            await LogiNative.shareProcessed([res]);
-        }
+        await this.sharePhotos([item]);
     }
 
     cancelSelection() {
@@ -432,22 +430,35 @@ class GalleryController {
     }
 
     async bulkShare() {
-        if (this.selectedIds.size === 0) return;
+        if (this.selectedIds.size === 0 || this.photoActionBusy) return;
         const items = State.items.filter(it => this.selectedIds.has(String(it.id)));
-        
-        // v191.9-TURBO: Procesar lote con marca de agua
-        const processed = [];
-        for (const item of items) {
-            const res = await window.ExportModule.processForShare(item);
-            if (res) processed.push(res);
-        }
-        
-        if (processed.length > 0) {
-            await LogiNative.shareProcessed(processed);
-        }
+        await this.sharePhotos(items);
+    }
+
+    async sharePhotos(items) {
+        if(this.photoActionBusy) return;
+        this.photoActionBusy=true;
+        try {
+            await sharePhotosDialog(items, item => ExportModule.processForShare(item), LogiNative.isNative() ? files => LogiNative.shareProcessed(files) : null);
+        } finally {this.photoActionBusy=false;}
+    }
+
+    async bulkMove() {
+        if(!this.selectedIds.size || this.photoActionBusy || !State.currentProject) return;
+        const ids=[...this.selectedIds].map(String), source={...State.currentProject};
+        const items=State.items.filter(item=>ids.includes(String(item.id)));
+        this.photoActionBusy=true;
+        try {
+            await movePhotosDialog({items,source,projects:State.projects,move:async targetId=>{
+                const count=await State.movePhotos(ids,targetId,source.id);
+                this.cancelSelection();
+                return count;
+            }});
+        } finally {this.photoActionBusy=false;}
     }
 
     async bulkDelete() {
+        if(this.photoActionBusy) return;
         if (this.selectedIds.size === 0) return;
         const count = this.selectedIds.size;
         CaptureDialog.show(`¿ELIMINAR ${count} CAPTURAS DEFINITIVAMENTE?`, async () => {

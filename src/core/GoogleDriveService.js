@@ -207,23 +207,26 @@ export const GoogleDriveSvc = {
 
     async _uploadPhoto(item, project = State.currentProject) {
         if (!item?.id || !item?.filename || !project?.googleConnected || !project?.controlProjectId) return false;
+        const photoId = item.drivePhotoId || item.id;
+        const live = State._allItems.find(entry => String(entry.id) === String(item.id));
+        if (!live || String(live.projectId) !== String(project.id) || (live.drivePhotoId || live.id) !== photoId) return false;
         const sentDescription = item.descripcion || '';
         const sentActivity = item.actividad || '';
         const description = JSON.stringify({
-            id: item.id,
+            id: photoId,
             date: localDate(item.createdAt),
             itemCode: sentActivity,
             description: sentDescription,
             originalFileName: item.filename
         });
-        const existing = await this._alreadyUploaded(item.id);
+        const existing = await this._alreadyUploaded(photoId);
         if (existing) {
             await this._authorizedFetch(`${DRIVE_API}/files/${encodeURIComponent(existing.id)}?fields=id`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ description, appProperties: { itemCode: String(sentActivity).slice(0, 120) } })
             });
-            await State.updateItemSyncStatus(item.id, item.descripcion === sentDescription && item.actividad === sentActivity);
+            await State.updateItemSyncStatus(item.id, item.descripcion === sentDescription && item.actividad === sentActivity, project.id, photoId);
             return true;
         }
 
@@ -238,24 +241,24 @@ export const GoogleDriveSvc = {
         if (!dataUrl) throw new Error(`La fotografía ${item.filename} no está disponible en el dispositivo.`);
         const blob = dataUrlToBlob(dataUrl);
         const metadata = {
-            name: `${item.id}.jpg`,
+            name: `${photoId}.jpg`,
             parents: [inboxId],
             description,
             appProperties: {
                 controlProjectId: String(project.controlProjectId),
-                controlPhotoId: String(item.id),
+                controlPhotoId: String(photoId),
                 photoDate: localDate(item.createdAt),
                 itemCode: String(sentActivity).slice(0, 120)
             }
         };
         const form = new FormData();
         form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-        form.append('file', blob, `${item.id}.jpg`);
+        form.append('file', blob, `${photoId}.jpg`);
         await this._authorizedFetch(`${DRIVE_UPLOAD_API}/files?uploadType=multipart&fields=id,md5Checksum,size`, {
             method: 'POST',
             body: form
         });
-        await State.updateItemSyncStatus(item.id, (item.descripcion || '') === sentDescription && (item.actividad || '') === sentActivity);
+        await State.updateItemSyncStatus(item.id, (item.descripcion || '') === sentDescription && (item.actividad || '') === sentActivity, project.id, photoId);
         DebugLogger.event('CLOUD', `Foto enviada a Google Drive: ${item.id}`);
         return true;
     },
