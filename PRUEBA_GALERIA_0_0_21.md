@@ -8,6 +8,7 @@
 - «Mover a otro proyecto» junto a Compartir y Eliminar. Selector excluye proyecto actual y proyectos recuperados virtuales; confirmación muestra origen, destino y cantidad. No admite acciones simultáneas desde galería.
 - Traslado PWA en una escritura atómica de metadatos: mismos originales, IDs locales, fecha, ubicación y descripción; sin copiar/borrar blobs. Reinicia ítem/actividad y sincronización. Si no puede guardar, no retira fotos del origen.
 - Identidad nueva para el próximo envío Drive, evitando reutilizar el archivo del proyecto anterior. Se descartan actualizaciones de sincronización antiguas y temporizadores pendientes. Las copias ya enviadas a Drive o CONTROL no se mueven ni borran automáticamente: se advierte antes de confirmar. Revisarlas en el proyecto anterior sigue siendo una acción manual.
+- Respaldo/restauración conserva la identidad de envío del traslado; la exportación `.lchp` usa esa misma identidad para no duplicar la foto al alternar con Drive.
 - La asignación explícita de proyecto prevalece sobre rescates por nombre en la galería; dos proyectos homónimos no deben compartir fotos accidentalmente.
 - Versión/caché 0.0.21; no se borra IndexedDB ni almacenamiento de proyectos. La limpieza de caché se limita al prefijo propio de Logi.
 

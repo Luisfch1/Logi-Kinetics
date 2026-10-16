@@ -198,7 +198,7 @@ export const BackupModule = {
                         ? base64
                         : `data:image/jpeg;base64,${base64}`;
                     entries.push({
-                        id: String(it.id),
+                        id: String(it.drivePhotoId || it.id),
                         date: toLocalDateString(it.createdAt || Date.now()),
                         itemCode: String(it.actividad || it.itemCode || ""),
                         description: String(it.descripcion || ""),
@@ -206,7 +206,7 @@ export const BackupModule = {
                         imageUrl: "",
                         isLocal: true
                     });
-                    photos.push({ id: String(it.id), base64Data });
+                    photos.push({ id: String(it.drivePhotoId || it.id), base64Data });
                 }
                 count++;
             }
@@ -466,11 +466,14 @@ export const BackupModule = {
                 const cleanItem = {
                     id: String(it.id || Date.now() + Math.random()),
                     descripcion: String(it.descripcion || ''),
-                    actividad: String(it.actividad || it.itemCode || 'GENERAL'),
+                    actividad: String(it.actividad ?? it.itemCode ?? 'GENERAL'),
                     createdAt: Number(it.createdAt || it.id || Date.now()),
                     projectId: String(it.projectId || it.proyecto_id || it.proyecto || 'p_default'),
                     projectName: String(projNameMap[it.projectId || it.proyecto_id || it.proyecto] || it.projectName || it.proyecto || 'Sin Proyecto'),
-                    filename: String(it.filename || `${it.id}.jpg`)
+                    filename: String(it.filename || `${it.id}.jpg`),
+                    ...(it.drivePhotoId ? {drivePhotoId: String(it.drivePhotoId)} : {}),
+                    ...(it.movedFromProjectId ? {movedFromProjectId: String(it.movedFromProjectId)} : {}),
+                    ...(it.movedAt ? {movedAt: Number(it.movedAt)} : {})
                 };
 
                 if (zip) {
