@@ -136,7 +136,7 @@ export const CaptureCtrl = {
     async loadThumbnailAsinc(item) {
         if (!item.filename) return;
         if (item._tempImageSrc && item._tempImageSrc.startsWith('data:')) return;
-        const uri = await LogiNative.getBlobUri(item.filename);
+        const uri = await LogiNative.getBlobUri(item.filename, item.id);
         if (uri) {
             item._tempImageSrc = uri;
             const imgEl = document.getElementById(`img-${item.id}`);

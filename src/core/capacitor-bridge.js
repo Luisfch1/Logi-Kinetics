@@ -38,11 +38,20 @@ function getDB() {
 
 const _webObjectUrls = new Map();
 const WEB_OBJECT_URL_LIMIT = 160;
+let _webBlobKeyIndexPromise = null;
+
+function normalizeWebBlobKey(value) {
+    const basename = String(value || '').trim().replace(/\\/g, '/').split('/').pop() || '';
+    return basename
+        .replace(/\.(jpg|jpeg|png|webp|gif|heic|heif|avif)$/i, '')
+        .replace(/^cap_/i, '')
+        .toLowerCase();
+}
 
 function webBlobCandidates(filename, itemId = '') {
-    const cleanName = String(filename || '').trim();
-    const noExt = cleanName.replace(/\.(jpg|jpeg|png|webp)$/i, '');
-    const noCap = noExt.replace(/^cap_/, '');
+    const cleanName = String(filename || '').trim().replace(/\\/g, '/').split('/').pop() || '';
+    const noExt = cleanName.replace(/\.(jpg|jpeg|png|webp|gif|heic|heif|avif)$/i, '');
+    const noCap = noExt.replace(/^cap_/i, '');
     const id = String(itemId || '').trim();
     return Array.from(new Set([
         cleanName,
@@ -51,14 +60,12 @@ function webBlobCandidates(filename, itemId = '') {
         noCap ? `${noCap}.jpg` : '',
         noCap ? `cap_${noCap}.jpg` : '',
         id,
-        id ? `${id}.jpg` : ''
+        id ? `${id}.jpg` : '',
+        id ? `cap_${id}.jpg` : ''
     ].filter(Boolean)));
 }
 
-async function getWebBlobRecord(filename, itemId = '') {
-    const db = await getDB();
-    if (!db) return null;
-    const candidates = webBlobCandidates(filename, itemId);
+function readWebBlobRecord(db, candidates) {
     return new Promise(resolve => {
         const tx = db.transaction(STORE_NAME, 'readonly');
         const store = tx.objectStore(STORE_NAME);
@@ -72,6 +79,47 @@ async function getWebBlobRecord(filename, itemId = '') {
         };
         next();
     });
+}
+
+function getWebBlobKeyIndex(db) {
+    if (_webBlobKeyIndexPromise) return _webBlobKeyIndexPromise;
+    _webBlobKeyIndexPromise = new Promise(resolve => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const request = tx.objectStore(STORE_NAME).getAllKeys();
+        request.onsuccess = () => {
+            const index = new Map();
+            (request.result || []).forEach(key => {
+                const normalized = normalizeWebBlobKey(key);
+                if (normalized && !index.has(normalized)) index.set(normalized, key);
+            });
+            resolve(index);
+        };
+        request.onerror = () => resolve(new Map());
+        tx.onabort = () => resolve(new Map());
+    });
+    return _webBlobKeyIndexPromise;
+}
+
+function invalidateWebBlobKeyIndex() {
+    _webBlobKeyIndexPromise = null;
+}
+
+async function getWebBlobRecord(filename, itemId = '') {
+    const db = await getDB();
+    if (!db) return null;
+    const candidates = webBlobCandidates(filename, itemId);
+    const exact = await readWebBlobRecord(db, candidates);
+    if (exact) return exact;
+
+    // Algunas versiones PWA guardaron el blob con una extensión o prefijo
+    // diferente. Como último recurso, resolvemos por el identificador estable
+    // de la captura; no modifica ni elimina ninguna foto almacenada.
+    const index = await getWebBlobKeyIndex(db);
+    const legacyKey = candidates
+        .map(normalizeWebBlobKey)
+        .map(normalized => index.get(normalized))
+        .find(Boolean);
+    return legacyKey ? readWebBlobRecord(db, [legacyKey]) : null;
 }
 
 function dataUrlToBlob(data) {
@@ -355,18 +403,11 @@ export const LogiNative = {
     },
 
     /** Verifica que una foto siga siendo recuperable inmediatamente después de guardarla. */
-    verifyBlob: async (filename) => {
+    verifyBlob: async (filename, itemId = '') => {
         if (!filename) return false;
         try {
             if (!LogiNative.isNative()) {
-                const db = await getDB();
-                if (!db) return false;
-                return await new Promise((resolve) => {
-                    const tx = db.transaction(STORE_NAME, 'readonly');
-                    const req = tx.objectStore(STORE_NAME).get(String(filename).trim());
-                    req.onsuccess = () => resolve(!!req.result);
-                    req.onerror = () => resolve(false);
-                });
+                return !!(await getWebBlobRecord(filename, itemId))?.value;
             }
             const cleanName = String(filename).trim();
             const noExt = cleanName.replace(/\.jpg$/i, '');
@@ -386,7 +427,7 @@ export const LogiNative = {
         const sample = (items || []).filter(it => it?.filename).slice(0, limit);
         let available = 0;
         for (const item of sample) {
-            if (await LogiNative.verifyBlob(item.filename)) available++;
+            if (await LogiNative.verifyBlob(item.filename, item.id)) available++;
         }
         return { checked: sample.length, available, missing: sample.length - available };
     },
@@ -916,6 +957,7 @@ export const LogiNative = {
             if (!blob) return false;
             const cleanName = String(filename).trim();
             revokeWebObjectUrl(cleanName);
+            invalidateWebBlobKeyIndex();
             const committed = await new Promise(r => {
                 const tx = db.transaction(STORE_NAME, 'readwrite');
                 const store = tx.objectStore(STORE_NAME);
@@ -962,16 +1004,16 @@ export const LogiNative = {
         }
     },
 
-    getBlobUri: async (filename) => {
+    getBlobUri: async (filename, itemId = '') => {
         if (!filename) return null;
         const t0 = performance.now();
         if (!LogiNative.isNative()) {
-            const record = await getWebBlobRecord(filename);
+            const record = await getWebBlobRecord(filename, itemId);
             if (!record?.value) {
                 DebugLogger.warn('BRIDGE', `getBlobUri Web: Blob no encontrado en IndexedDB (${filename})`);
                 return null;
             }
-            return objectUrlForWebBlob(String(filename).trim(), record.value);
+            return objectUrlForWebBlob(record.key, record.value);
         }
         try {
             const cleanName = String(filename).trim();
@@ -1029,6 +1071,7 @@ export const LogiNative = {
             if (!db) return false;
             const candidates = webBlobCandidates(filename);
             candidates.forEach(revokeWebObjectUrl);
+            invalidateWebBlobKeyIndex();
             return new Promise(r => {
                 const tx = db.transaction(STORE_NAME, 'readwrite');
                 const store = tx.objectStore(STORE_NAME);

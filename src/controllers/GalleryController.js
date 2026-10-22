@@ -264,7 +264,7 @@ class GalleryController {
 
     async loadThumbnail(item) {
         if (!item.filename) return;
-        const uri = await LogiNative.getBlobUri(item.filename);
+        const uri = await LogiNative.getBlobUri(item.filename, item.id);
         if (uri) {
             const img = document.getElementById(`gal-img-${item.id}`);
             if (img) {

@@ -158,11 +158,11 @@
     <script src="/lib/xlsx.full.min.js?v=2026-04-03-1845"></script>
     <script src="/lib/pdf-lib.min.js?v=2026-04-03-1845"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-    <script type="module" src="/src/main.js?v=0.0.21"></script>
+    <script type="module" src="/src/main.js?v=0.0.22"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=0.0.21')
+                navigator.serviceWorker.register('./sw.js?v=0.0.22')
                     .then(reg => console.log('Service Worker registrado con éxito:', reg.scope))
                     .catch(err => console.error('Error al registrar Service Worker:', err));
             });

@@ -94,11 +94,11 @@ export const GalleryEditOverlay = {
         this.bindEvents(callbacks);
 
         // Carga asíncrona de la imagen
-        this.loadImage(item.filename);
+        this.loadImage(item.filename, item.id);
     },
 
-    async loadImage(filename) {
-        const imageUri = await LogiNative.getBlobUri(filename);
+    async loadImage(filename, itemId = '') {
+        const imageUri = await LogiNative.getBlobUri(filename, itemId);
         const img = document.getElementById('edit-preview-img');
         const loader = document.getElementById('edit-img-loader');
         if (img) {
