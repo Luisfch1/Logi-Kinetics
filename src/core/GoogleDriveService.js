@@ -295,7 +295,7 @@ export const GoogleDriveSvc = {
         return { total: items.length, uploaded, skipped, failures };
     },
 
-    /** Reconstruye únicamente las imágenes ausentes de una PWA desde Entrada Logi. */
+    /** Reconstruye imágenes ausentes de la PWA desde las carpetas del proyecto en Drive. */
     async recoverProjectPhotos(projectId, onProgress = null) {
         if (!this.isWeb()) throw new Error('Esta recuperación está disponible en la PWA.');
         const project = State.projects.find(entry => String(entry.id) === String(projectId));
@@ -321,21 +321,61 @@ export const GoogleDriveSvc = {
         const inboxId = project.driveInboxId || (await this.findInbox(project.controlProjectId))?.id;
         if (!inboxId) throw new Error('No se encontró la carpeta Entrada Logi de este proyecto.');
 
-        const files = [];
-        let pageToken = '';
-        do {
-            const params = new URLSearchParams({
-                q: `'${escapeDriveQuery(inboxId)}' in parents and trashed=false`,
+        // CONTROL mueve las fotos procesadas a una carpeta hermana de Entrada Logi.
+        const inboxParams = new URLSearchParams({
+            fields: 'id,parents,appProperties',
+            supportsAllDrives: 'true'
+        });
+        const { response: inboxResponse } = await this._authorizedFetch(
+            `${DRIVE_API}/files/${encodeURIComponent(inboxId)}?${inboxParams}`,
+            {}, true, project.googleEmail || ''
+        );
+        const inbox = await inboxResponse.json();
+        if (inbox.appProperties?.controlProjectId &&
+            String(inbox.appProperties.controlProjectId) !== String(project.controlProjectId)) {
+            throw new Error('La carpeta de Drive no corresponde a este proyecto de CONTROL.');
+        }
+        const projectFolderId = inbox.parents?.[0];
+        const folderIds = [inboxId];
+        if (projectFolderId) {
+            const siblingParams = new URLSearchParams({
+                q: `'${escapeDriveQuery(projectFolderId)}' in parents and name='Recibidas por Control' and mimeType='${FOLDER_MIME}' and trashed=false`,
                 spaces: 'drive',
                 pageSize: '1000',
-                fields: 'nextPageToken,files(id,name,mimeType,size,appProperties)'
+                fields: 'nextPageToken,files(id,name,parents,appProperties)',
+                supportsAllDrives: 'true',
+                includeItemsFromAllDrives: 'true'
             });
-            if (pageToken) params.set('pageToken', pageToken);
-            const { response } = await this._authorizedFetch(`${DRIVE_API}/files?${params}`, {}, true, project.googleEmail || '');
-            const page = await response.json();
-            files.push(...(page.files || []));
-            pageToken = page.nextPageToken || '';
-        } while (pageToken);
+            const { response } = await this._authorizedFetch(`${DRIVE_API}/files?${siblingParams}`, {}, true, project.googleEmail || '');
+            const siblings = (await response.json()).files || [];
+            for (const folder of siblings) {
+                if (folder.id && folder.parents?.includes(projectFolderId) &&
+                    (!folder.appProperties?.controlProjectId ||
+                        String(folder.appProperties.controlProjectId) === String(project.controlProjectId))) {
+                    folderIds.push(folder.id);
+                }
+            }
+        }
+
+        const files = [];
+        for (const folderId of folderIds) {
+            let pageToken = '';
+            do {
+                const params = new URLSearchParams({
+                    q: `'${escapeDriveQuery(folderId)}' in parents and trashed=false`,
+                    spaces: 'drive',
+                    pageSize: '1000',
+                    fields: 'nextPageToken,files(id,name,mimeType,size,appProperties)',
+                    supportsAllDrives: 'true',
+                    includeItemsFromAllDrives: 'true'
+                });
+                if (pageToken) params.set('pageToken', pageToken);
+                const { response } = await this._authorizedFetch(`${DRIVE_API}/files?${params}`, {}, true, project.googleEmail || '');
+                const page = await response.json();
+                files.push(...(page.files || []));
+                pageToken = page.nextPageToken || '';
+            } while (pageToken);
+        }
 
         const byPhotoId = new Map();
         for (const file of files) {

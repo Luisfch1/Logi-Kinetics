@@ -105,21 +105,33 @@ drive.authorize=async()=>({email:'drive@example.com'});
 const missingPhotos=state._allItems.slice(0,3);
 let pages=0;
 drive._authorizedFetch=async(url)=>{
+    if(url.includes('/files/target-inbox?')) {
+        return {response:{json:async()=>({id:'target-inbox',parents:['project-root'],appProperties:{controlProjectId:'control-target'}})}};
+    }
     if(url.includes('/files?')){
+        const query=new URL(url).searchParams.get('q');
+        if(query.includes("name='Recibidas por Control'")) {
+            assert.ok(query.includes('project-root'));
+            return {response:{json:async()=>({files:[
+                {id:'received-folder',name:'Recibidas por Control',parents:['project-root']},
+                {id:'other-project-folder',name:'Recibidas por Control',parents:['other-root']}
+            ]})}};
+        }
         pages++;
-        assert.ok(url.includes('target-inbox'));
-        return {response:{json:async()=>pages===1?{
+        if(query.includes('target-inbox')) return {response:{json:async()=>pages===1?{
             files:[
                 {id:'f1',name:`${missingPhotos[0].drivePhotoId}.jpg`,mimeType:'image/jpeg',appProperties:{controlProjectId:'control-target',controlPhotoId:missingPhotos[0].drivePhotoId}},
                 {id:'wrong',name:`${missingPhotos[2].drivePhotoId}.jpg`,mimeType:'image/jpeg',appProperties:{controlProjectId:'other',controlPhotoId:missingPhotos[2].drivePhotoId}}
             ],nextPageToken:'next'
-        }:{files:[{id:'f2',name:`${missingPhotos[1].drivePhotoId}.jpg`,mimeType:'image/jpeg',appProperties:{controlProjectId:'control-target',controlPhotoId:missingPhotos[1].drivePhotoId}}]}}};
+        }:{files:[]}}};
+        assert.ok(query.includes('received-folder'));
+        return {response:{json:async()=>({files:[{id:'f2',name:`${missingPhotos[1].drivePhotoId}.jpg`,mimeType:'image/jpeg',appProperties:{controlProjectId:'control-target',controlPhotoId:missingPhotos[1].drivePhotoId}}]})}};
     }
     assert.ok(url.includes('/files/f1?')||url.includes('/files/f2?'));
     return {response:{blob:async()=>new Blob(['jpeg bytes'],{type:'image/jpeg'})}};
 };
 const recovery=await drive.recoverProjectPhotos(target.id);
-assert.equal(pages,2);assert.equal(recovery.missing,3);assert.equal(recovery.recovered,2);
+assert.equal(pages,3);assert.equal(recovery.missing,3);assert.equal(recovery.recovered,2);
 assert.equal(recovery.notFound,1);assert.equal(recovery.failures.length,0);
 assert.deepEqual(recovered.map(entry=>entry.itemId),missingPhotos.slice(0,2).map(item=>item.id));
 console.log('OK: traslado, aislamiento, Drive, respaldo CONTROL y recuperación PWA por proyecto sin sobrescribir fotos (sin red).');
