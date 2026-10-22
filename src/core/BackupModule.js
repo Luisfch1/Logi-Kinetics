@@ -127,6 +127,7 @@ export const BackupModule = {
             // 2. Agregar Fotos (Ruta Legacy: photos/[projectId]/[itemId].jpg)
             const photoFolder = zip.folder(`photos/${projectId}`);
             let count = 0;
+            let included = 0;
             const total = items.length;
 
             for (const it of items) {
@@ -134,7 +135,7 @@ export const BackupModule = {
                 const base64 = (await LogiNative.readBlobAsBase64(it.filename)) || 
                                (await LogiNative.readBlobAsBase64(it.id)) || 
                                (await LogiNative.readBlobAsBase64(`${it.id}.jpg`)) || 
-                               it._tempImageSrc || 
+                               (it._tempImageSrc?.startsWith('data:image/') ? it._tempImageSrc : null) ||
                                it.base64;
                 if (base64) {
                     const rawData = base64.includes(',') ? base64.split(',')[1] : base64;
@@ -142,8 +143,16 @@ export const BackupModule = {
                     photoFolder.file(it.filename, rawData, { base64: true });
                     zip.file(`photos/${it.filename}`, rawData, { base64: true });
                     zip.file(`photos/${it.id}.jpg`, rawData, { base64: true });
+                    included++;
                 }
                 count++;
+            }
+
+            if (total > 0 && included === 0) {
+                throw new Error('El proyecto tiene registros, pero ninguna foto está disponible en este dispositivo. Recupera las fotos desde Drive antes de generar el respaldo.');
+            }
+            if (included < total) {
+                zip.file('FOTOS_FALTANTES.txt', `Este respaldo contiene ${included} de ${total} fotos. Recupera las restantes desde Drive y genera otro respaldo completo.`);
             }
 
             this._notifyProgress(total, total, "Generando archivo ZIP...");
@@ -152,6 +161,7 @@ export const BackupModule = {
             // 3. Guardar/Compartir
             const filename = `Backup_${project.name.replace(/\s+/g, '_')}_${Date.now()}.zip`;
             await this._saveAndShareZip(blob, filename);
+            if (included < total) alert(`Respaldo parcial: ${included} de ${total} fotos incluidas. Recupera las restantes desde Drive y crea un nuevo ZIP.`);
 
         } catch (e) {
             console.error("Export Error:", e);
@@ -191,7 +201,7 @@ export const BackupModule = {
                 const base64 = (await LogiNative.readBlobAsBase64(it.filename)) || 
                                (await LogiNative.readBlobAsBase64(it.id)) || 
                                (await LogiNative.readBlobAsBase64(`${it.id}.jpg`)) || 
-                               it._tempImageSrc || 
+                               (it._tempImageSrc?.startsWith('data:image/') ? it._tempImageSrc : null) ||
                                it.base64;
                 if (base64) {
                     const base64Data = base64.startsWith('data:')
@@ -271,6 +281,7 @@ export const BackupModule = {
 
             // 2. Fotos organizadas por proyecto
             let count = 0;
+            let included = 0;
             const total = State._allItems.length;
 
             for (const it of State._allItems) {
@@ -279,7 +290,7 @@ export const BackupModule = {
                 const base64 = (await LogiNative.readBlobAsBase64(it.filename)) || 
                                (await LogiNative.readBlobAsBase64(it.id)) || 
                                (await LogiNative.readBlobAsBase64(`${it.id}.jpg`)) || 
-                               it._tempImageSrc || 
+                               (it._tempImageSrc?.startsWith('data:image/') ? it._tempImageSrc : null) ||
                                it.base64;
                 if (base64) {
                     const rawData = base64.includes(',') ? base64.split(',')[1] : base64;
@@ -287,14 +298,23 @@ export const BackupModule = {
                     zip.file(`photos/${pid}/${it.filename}`, rawData, { base64: true });
                     zip.file(`photos/${it.filename}`, rawData, { base64: true });
                     zip.file(`photos/${it.id}.jpg`, rawData, { base64: true });
+                    included++;
                 }
                 count++;
+            }
+
+            if (total > 0 && included === 0) {
+                throw new Error('Hay registros, pero ninguna foto está disponible en este dispositivo. Recupera las fotos desde Drive antes de generar el respaldo total.');
+            }
+            if (included < total) {
+                zip.file('FOTOS_FALTANTES.txt', `Este respaldo contiene ${included} de ${total} fotos. Recupera las restantes desde Drive y genera otro respaldo completo.`);
             }
 
             this._notifyProgress(total, total, "Generando archivo final...");
             const blob = await zip.generateAsync({ type: "blob" });
             const filename = `Respaldo_TOTAL_Logi_${new Date().toISOString().split('T')[0]}.zip`;
             await this._saveAndShareZip(blob, filename);
+            if (included < total) alert(`Respaldo parcial: ${included} de ${total} fotos incluidas. Recupera las restantes desde Drive y crea un nuevo ZIP.`);
 
         } catch (e) {
             console.error("Export Total Error:", e);

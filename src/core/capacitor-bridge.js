@@ -512,7 +512,7 @@ export const LogiNative = {
             data_dir: DATA_DIR,
             base_uri: _dynamicBlobsUri,
             migrated: localStorage.getItem('logi_migrated_v189'),
-            version: '0.0.22-GALLERY'
+            version: '0.0.23-GALLERY'
         };
     },
 
@@ -1002,6 +1002,30 @@ export const LogiNative = {
             DebugLogger.error('BRIDGE', `storeBlob Error/Timeout (${filename}) tras ${dt}ms: ${e.message}`, { error: e, payloadKB });
             return false;
         }
+    },
+
+    /** Recupera una foto de Drive en la PWA solo si no existe localmente. */
+    restoreMissingWebBlob: async (filename, itemId, blob) => {
+        if (LogiNative.isNative()) throw new Error('La recuperación web solo está disponible en la PWA.');
+        const cleanName = String(filename || '').trim();
+        if (!cleanName || !(blob instanceof Blob) || blob.size === 0 || !blob.type.startsWith('image/')) {
+            throw new Error('Drive no entregó una imagen válida.');
+        }
+        if (await LogiNative.verifyBlob(cleanName, itemId)) return false;
+        const db = await getDB();
+        if (!db) throw new Error('El almacenamiento local de fotos no está disponible.');
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            tx.objectStore(STORE_NAME).add(blob, cleanName);
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error || new Error('No se pudo guardar la foto recuperada.'));
+            tx.onabort = () => reject(tx.error || new Error('La recuperación fue interrumpida.'));
+        });
+        invalidateWebBlobKeyIndex();
+        if (!(await LogiNative.verifyBlob(cleanName, itemId))) {
+            throw new Error('No se pudo comprobar la foto recuperada.');
+        }
+        return true;
     },
 
     getBlobUri: async (filename, itemId = '') => {

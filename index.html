@@ -88,7 +88,7 @@
     <div id="projects-overlay"></div>
     <div id="debug-console-overlay" class="fixed inset-0 z-[9999] hidden bg-black/95 backdrop-blur-xl p-8 overflow-y-auto font-mono text-[10px] text-primary">
         <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
-            <h2 class="text-xl font-black italic text-primary">ULTIMATE DEBUG CONSOLE (v0.0.22 · GALERÍA)</h2>
+            <h2 class="text-xl font-black italic text-primary">ULTIMATE DEBUG CONSOLE (v0.0.23 · GALERÍA)</h2>
             <button onclick="document.getElementById('debug-console-overlay').classList.add('hidden')" class="bg-primary text-black px-4 py-2 rounded-full font-black">CERRAR</button>
         </div>
         <div id="debug-console-content" class="space-y-6">
@@ -115,7 +115,7 @@
 
     <!-- Google Drive / CONTROL Dialog -->
     <div id="cloud-dialog-overlay" class="fixed inset-0 z-[101] hidden items-center justify-center bg-black/80 backdrop-blur-sm p-6">
-        <div class="bg-[#111111] border border-white/10 w-full max-w-md rounded-[2rem] p-8 space-y-6 shadow-2xl scale-95 opacity-0 transition-all duration-300 transform" id="cloud-dialog-content">
+        <div class="bg-[#111111] border border-white/10 w-full max-w-md max-h-[calc(100dvh-3rem)] overflow-y-auto rounded-[2rem] p-8 space-y-6 shadow-2xl scale-95 opacity-0 transition-all duration-300 transform" id="cloud-dialog-content">
             <div class="space-y-2 text-center">
                 <h3 class="font-headline font-black text-primary uppercase tracking-widest text-sm">GOOGLE DRIVE + CONTROL</h3>
                 <p class="text-white/40 text-[10px] leading-relaxed uppercase font-medium">Las fotos quedan seguras en Logi y viajan por el Drive del proyecto</p>
@@ -137,6 +137,7 @@
             <div class="flex flex-col gap-2 pt-2">
                 <button id="cloud-btn-save" class="w-full h-12 rounded-xl bg-primary text-black text-[10px] font-black uppercase active:scale-95 transition-all">Conectar cuenta Google</button>
                 <button id="cloud-btn-sync-all" class="w-full h-12 rounded-xl bg-white/5 border border-white/10 text-white text-[10px] font-bold uppercase active:scale-95 transition-all hidden">Sincronizar todo ahora</button>
+                <button id="cloud-btn-recover" class="w-full h-12 rounded-xl bg-white/5 border border-primary/30 text-primary text-[10px] font-bold uppercase active:scale-95 transition-all hidden">Recuperar fotos desde Drive</button>
                 <button id="cloud-btn-cancel" class="w-full h-8 text-white/40 text-[9px] font-bold uppercase tracking-widest hover:text-white transition-all">Cerrar</button>
             </div>
         </div>
@@ -158,11 +159,11 @@
     <script src="/lib/xlsx.full.min.js?v=2026-04-03-1845"></script>
     <script src="/lib/pdf-lib.min.js?v=2026-04-03-1845"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-    <script type="module" src="/src/main.js?v=0.0.22"></script>
+    <script type="module" src="/src/main.js?v=0.0.23"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=0.0.22')
+                navigator.serviceWorker.register('./sw.js?v=0.0.23')
                     .then(reg => console.log('Service Worker registrado con éxito:', reg.scope))
                     .catch(err => console.error('Error al registrar Service Worker:', err));
             });

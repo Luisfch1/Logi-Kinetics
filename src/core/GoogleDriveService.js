@@ -131,16 +131,16 @@ export const GoogleDriveSvc = {
         return result;
     },
 
-    async _authorizedFetch(url, options = {}, allowRetry = true) {
-        const auth = await this.authorize();
+    async _authorizedFetch(url, options = {}, allowRetry = true, loginHint = '') {
+        const auth = await this.authorize({ loginHint: loginHint || State.currentProject?.googleEmail || '' });
         const response = await fetch(url, {
             ...options,
             headers: { ...(options.headers || {}), Authorization: `Bearer ${auth.accessToken}` }
         });
         if (response.status === 401 && allowRetry && this.isWeb()) {
             webAuthorization = null;
-            await this.authorize();
-            return this._authorizedFetch(url, options, false);
+            await this.authorize({ loginHint: loginHint || State.currentProject?.googleEmail || '' });
+            return this._authorizedFetch(url, options, false, loginHint);
         }
         if (!response.ok) {
             const body = await response.text();
@@ -293,6 +293,87 @@ export const GoogleDriveSvc = {
             lastDriveSyncAt: new Date().toISOString()
         });
         return { total: items.length, uploaded, skipped, failures };
+    },
+
+    /** Reconstruye únicamente las imágenes ausentes de una PWA desde Entrada Logi. */
+    async recoverProjectPhotos(projectId, onProgress = null) {
+        if (!this.isWeb()) throw new Error('Esta recuperación está disponible en la PWA.');
+        const project = State.projects.find(entry => String(entry.id) === String(projectId));
+        if (!project?.googleConnected || !project.controlProjectId) {
+            throw new Error('Primero conecta este proyecto con su cuenta de Google Drive.');
+        }
+        const items = State._allItems.filter(item =>
+            (item._pnid || State._norm(item.projectId)) === State._norm(projectId) && item.filename
+        );
+        const missing = [];
+        for (const item of items) {
+            if (!(await LogiNative.verifyBlob(item.filename, item.id))) missing.push(item);
+        }
+        if (missing.length === 0) return { missing: 0, recovered: 0, notFound: 0, failures: [] };
+
+        let auth = await this.authorize({ loginHint: project.googleEmail || '' });
+        if (project.googleEmail && auth.email && auth.email.toLowerCase() !== project.googleEmail.toLowerCase()) {
+            auth = await this.authorize({ selectAccount: true, loginHint: project.googleEmail });
+            if (auth.email && auth.email.toLowerCase() !== project.googleEmail.toLowerCase()) {
+                throw new Error(`Este proyecto está conectado a ${project.googleEmail}. Selecciona esa cuenta de Google para recuperar sus fotos.`);
+            }
+        }
+        const inboxId = project.driveInboxId || (await this.findInbox(project.controlProjectId))?.id;
+        if (!inboxId) throw new Error('No se encontró la carpeta Entrada Logi de este proyecto.');
+
+        const files = [];
+        let pageToken = '';
+        do {
+            const params = new URLSearchParams({
+                q: `'${escapeDriveQuery(inboxId)}' in parents and trashed=false`,
+                spaces: 'drive',
+                pageSize: '1000',
+                fields: 'nextPageToken,files(id,name,mimeType,size,appProperties)'
+            });
+            if (pageToken) params.set('pageToken', pageToken);
+            const { response } = await this._authorizedFetch(`${DRIVE_API}/files?${params}`, {}, true, project.googleEmail || '');
+            const page = await response.json();
+            files.push(...(page.files || []));
+            pageToken = page.nextPageToken || '';
+        } while (pageToken);
+
+        const byPhotoId = new Map();
+        for (const file of files) {
+            if (!file.id || !String(file.mimeType || '').startsWith('image/')) continue;
+            if (file.appProperties?.controlProjectId &&
+                String(file.appProperties.controlProjectId) !== String(project.controlProjectId)) continue;
+            const photoId = String(file.appProperties?.controlPhotoId || file.name?.replace(/\.[^/.]+$/, '') || '');
+            if (!photoId) continue;
+            if (byPhotoId.has(photoId)) byPhotoId.set(photoId, null);
+            else byPhotoId.set(photoId, file);
+        }
+
+        let recovered = 0;
+        let notFound = 0;
+        const failures = [];
+        for (let index = 0; index < missing.length; index++) {
+            const item = missing[index];
+            const photoId = String(item.drivePhotoId || item.id);
+            const file = byPhotoId.get(photoId);
+            if (!file) {
+                notFound++;
+            } else {
+                try {
+                    const { response } = await this._authorizedFetch(`${DRIVE_API}/files/${encodeURIComponent(file.id)}?alt=media`, {}, true, project.googleEmail || '');
+                    const downloaded = await response.blob();
+                    const blob = downloaded.type.startsWith('image/')
+                        ? downloaded
+                        : new Blob([downloaded], { type: file.mimeType });
+                    if (await LogiNative.restoreMissingWebBlob(item.filename, item.id, blob)) recovered++;
+                } catch (error) {
+                    failures.push({ id: item.id, error: error.message || String(error) });
+                    DebugLogger.error('CLOUD', `No se recuperó ${item.id}: ${error.message}`, { error });
+                }
+            }
+            onProgress?.({ current: index + 1, total: missing.length, recovered, notFound, failures: failures.length });
+        }
+        if (recovered) State.notify('items');
+        return { missing: missing.length, recovered, notFound, failures };
     },
 
     async queuePhoto(item) {

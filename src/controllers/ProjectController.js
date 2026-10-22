@@ -34,6 +34,7 @@ export class ProjectController {
         this.btnCloudCancel = document.getElementById('cloud-btn-cancel');
         this.btnCloudSave = document.getElementById('cloud-btn-save');
         this.btnCloudSyncAll = document.getElementById('cloud-btn-sync-all');
+        this.btnCloudRecover = document.getElementById('cloud-btn-recover');
 
         State.subscribe((state, change) => {
             if (change === 'projects' || change === 'items' || !change) {
@@ -214,8 +215,10 @@ export class ProjectController {
         // Mostrar botón de Sincronización Masiva solo si ya está configurado
         if (project.googleConnected) {
             this.btnCloudSyncAll.classList.remove('hidden');
+            this.btnCloudRecover.classList.toggle('hidden', !isWeb);
         } else {
             this.btnCloudSyncAll.classList.add('hidden');
+            this.btnCloudRecover.classList.add('hidden');
         }
 
         this.cloudDialog.classList.remove('hidden');
@@ -231,6 +234,33 @@ export class ProjectController {
             };
 
             this.btnCloudCancel.onclick = () => cleanup();
+
+            this.btnCloudRecover.onclick = async () => {
+                this.btnCloudRecover.disabled = true;
+                this.btnCloudSyncAll.disabled = true;
+                this.btnCloudSave.disabled = true;
+                this.btnCloudCancel.disabled = true;
+                this.btnCloudRecover.innerText = 'Buscando fotos...';
+                try {
+                    const result = await GoogleDriveSvc.recoverProjectPhotos(projectId, progress => {
+                        this.btnCloudRecover.innerText = `Recuperando ${progress.current}/${progress.total}`;
+                    });
+                    this.cloudStatus.innerText = result.missing === 0
+                        ? 'Todas las fotos del proyecto ya están disponibles en este dispositivo.'
+                        : `${result.recovered} fotos recuperadas. ${result.notFound} sin coincidencia en Drive. ${result.failures.length} no se pudieron descargar.`;
+                    if (result.failures.length) {
+                        alert(`Se recuperaron ${result.recovered} fotos. ${result.failures.length} descargas fallaron: ${result.failures[0].error}. Puedes intentar de nuevo sin perder las ya recuperadas.`);
+                    }
+                } catch (error) {
+                    this.cloudStatus.innerText = error.message || String(error);
+                } finally {
+                    this.btnCloudRecover.innerText = 'Recuperar fotos desde Drive';
+                    this.btnCloudRecover.disabled = false;
+                    this.btnCloudSyncAll.disabled = false;
+                    this.btnCloudSave.disabled = false;
+                    this.btnCloudCancel.disabled = false;
+                }
+            };
 
             this.btnCloudSyncAll.onclick = async () => {
                 this.btnCloudSyncAll.innerText = 'Preparando...';
@@ -267,6 +297,7 @@ export class ProjectController {
                     const connection = await GoogleDriveSvc.connectProject({ ...project, controlProjectId }, { selectAccount: true });
                     this.cloudStatus.innerText = `Conectado: ${connection.email || 'cuenta Google'}.`;
                     this.btnCloudSyncAll.classList.remove('hidden');
+                    this.btnCloudRecover.classList.toggle('hidden', !isWeb);
                     alert('Cuenta conectada. Las fotos nuevas viajarán a CONTROL por Google Drive.');
                 } catch (error) {
                     alert(error.message || String(error));

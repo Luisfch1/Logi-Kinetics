@@ -90,4 +90,36 @@ backup._saveAndShareFile=async blob=>{exported=JSON.parse(await blob.text());};
 state.projects=[source,target];
 await backup.exportToControl(target.id);
 assert.equal(exported.entries[0].id,photo.drivePhotoId);assert.equal(exported.photos[0].id,photo.drivePhotoId);
-console.log('OK: traslado de 12, originales/metadatos, cuota atómica, reapertura, aislamiento, envío obsoleto rechazado, Drive y respaldo/paquete CONTROL con identidad correcta (sin red).');
+// Recuperación PWA: solo blobs faltantes, coincidencia dentro del proyecto y paginación.
+state.projects=[source,{...connectedTarget,googleEmail:'drive@example.com'}];
+const available=new Set(state._allItems.slice(3).map(item=>item.filename));
+bridge.verifyBlob=async filename=>available.has(filename);
+const recovered=[];
+bridge.restoreMissingWebBlob=async(filename,itemId,blob)=>{
+    assert.equal(blob.type,'image/jpeg');
+    assert.ok(blob.size>0);
+    assert.ok(!available.has(filename));
+    available.add(filename);recovered.push({filename,itemId});return true;
+};
+drive.authorize=async()=>({email:'drive@example.com'});
+const missingPhotos=state._allItems.slice(0,3);
+let pages=0;
+drive._authorizedFetch=async(url)=>{
+    if(url.includes('/files?')){
+        pages++;
+        assert.ok(url.includes('target-inbox'));
+        return {response:{json:async()=>pages===1?{
+            files:[
+                {id:'f1',name:`${missingPhotos[0].drivePhotoId}.jpg`,mimeType:'image/jpeg',appProperties:{controlProjectId:'control-target',controlPhotoId:missingPhotos[0].drivePhotoId}},
+                {id:'wrong',name:`${missingPhotos[2].drivePhotoId}.jpg`,mimeType:'image/jpeg',appProperties:{controlProjectId:'other',controlPhotoId:missingPhotos[2].drivePhotoId}}
+            ],nextPageToken:'next'
+        }:{files:[{id:'f2',name:`${missingPhotos[1].drivePhotoId}.jpg`,mimeType:'image/jpeg',appProperties:{controlProjectId:'control-target',controlPhotoId:missingPhotos[1].drivePhotoId}}]}}};
+    }
+    assert.ok(url.includes('/files/f1?')||url.includes('/files/f2?'));
+    return {response:{blob:async()=>new Blob(['jpeg bytes'],{type:'image/jpeg'})}};
+};
+const recovery=await drive.recoverProjectPhotos(target.id);
+assert.equal(pages,2);assert.equal(recovery.missing,3);assert.equal(recovery.recovered,2);
+assert.equal(recovery.notFound,1);assert.equal(recovery.failures.length,0);
+assert.deepEqual(recovered.map(entry=>entry.itemId),missingPhotos.slice(0,2).map(item=>item.id));
+console.log('OK: traslado, aislamiento, Drive, respaldo CONTROL y recuperación PWA por proyecto sin sobrescribir fotos (sin red).');

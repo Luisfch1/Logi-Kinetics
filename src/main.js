@@ -21,7 +21,7 @@ import { LogiNative } from './core/capacitor-bridge.js';
 import { DebugLogger } from './utils/DebugLogger.js';
 import { defineCustomElements } from '@ionic/pwa-elements/loader';
 
-const APP_VERSION = '0.0.22';
+const APP_VERSION = '0.0.23';
 
 // El modo horizontal de la app móvil no debe confundirse con una ventana de PC.
 // En escritorio conservamos la navegación y el paquete visual completo.
@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (localStorage.getItem('logi_photo_guard_signature') === signature) return;
             localStorage.setItem('logi_photo_guard_signature', signature);
             DebugLogger.error('STORAGE', `Alerta de integridad: ${result.missing}/${result.checked} fotos no están disponibles en IndexedDB.`);
-            alert(`ALERTA DE RESPALDO: faltan ${result.missing} de ${result.checked} fotos verificadas. No borres los datos de Chrome; genera o restaura un respaldo antes de continuar.`);
+            alert(`Faltan ${result.missing} de ${result.checked} fotos verificadas en este dispositivo. Si están en Drive, abre el proyecto, toca el icono de nube y elige “Recuperar fotos desde Drive”. No borres los datos de Chrome.`);
         });
 
         const retryCloudBackups = () => {
